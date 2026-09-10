@@ -56,6 +56,7 @@ import {
 } from 'recharts';
 
 import { BranchPerformanceSection } from './Dashboard/BranchPerformanceSection';
+import { BranchTargetAchievementSection } from './Dashboard/BranchTargetAchievementSection';
 import { StockConditionSection } from './Dashboard/StockConditionSection';
 import { OutstandingWorkSection } from './Dashboard/OutstandingWorkSection';
 import { ReferalBreakdownSection } from './Dashboard/ReferalBreakdownSection';
@@ -543,6 +544,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ======================================================== */}
+      {/* TARGET EARSOUND 2026 BULANAN SETIAP CABANG               */}
+      {/* ======================================================== */}
+      <BranchTargetAchievementSection
+        allAksesoris={allAksesoris.length > 0 ? allAksesoris : safeAksesoris}
+        allJasaPeriksa={allJasaPeriksa.length > 0 ? allJasaPeriksa : safeJasaPeriksa}
+        allABD={allABD.length > 0 ? allABD : safeABD}
+        activeBranchFilter={selectedBranch}
+      />
 
       {/* ======================================================== */}
       {/* 2. QUESTION 9: PERFORMA & PERBANDINGAN 8 CABANG EARSOUND */}
