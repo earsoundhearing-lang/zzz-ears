@@ -20,6 +20,7 @@ export type ReferalSource =
   | 'Pasien Lama'
   | 'Plang Toko, Neonbox, Google Maps / Walk-in'
   | 'Dokter Umum dan Dokter Spesialis'
+  | 'RS/LAB/KLINIK'
   | 'Google'
   | 'Social Media (FB, IG, Tiktok)'
   | 'Shopee'

@@ -14,10 +14,20 @@ interface PatientModalProps {
   activeBranchCode?: string;
 }
 
+export const DEFAULT_RS_LAB_KLINIK_LIST = [
+  'LAB MMC',
+  'RS MADANI',
+  'RS MARTHA FRISKA',
+  'RS MITRA MEDIKA',
+  'RS THERESIA',
+  'RS MITRA JAMBI',
+];
+
 const REFERAL_OPTIONS: ReferalSource[] = [
   'Pasien Lama',
   'Plang Toko, Neonbox, Google Maps / Walk-in',
   'Dokter Umum dan Dokter Spesialis',
+  'RS/LAB/KLINIK',
   'Google',
   'Social Media (FB, IG, Tiktok)',
   'Shopee',
@@ -158,6 +168,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
     
     const isDokterOrRS = 
       formData.referal === 'Dokter Umum dan Dokter Spesialis' || 
+      formData.referal === 'RS/LAB/KLINIK' ||
       Boolean(formData.namaDokter) || 
       Boolean(formData.namaRS);
 
@@ -547,7 +558,52 @@ export const PatientModal: React.FC<PatientModalProps> = ({
               </div>
             )}
 
-            {/* Sub-pilihan untuk Rujukan Dokter / RS */}
+            {/* Sub-pilihan untuk RS / LAB / KLINIK */}
+            {formData.referal === 'RS/LAB/KLINIK' && (
+              <div className="p-3.5 bg-white rounded-lg border border-slate-200 space-y-3 animate-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Pilih / Klik Nama RS, Lab, atau Klinik: <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2.5">
+                    {DEFAULT_RS_LAB_KLINIK_LIST.map((rsName) => (
+                      <button
+                        key={rsName}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, namaRS: rsName })}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-all ${
+                          formData.namaRS === rsName
+                            ? 'bg-[#23277A] text-white border-[#23277A] shadow-2xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {rsName}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Atau ketik nama RS / Lab / Klinik lainnya..."
+                    value={formData.namaRS || ''}
+                    onChange={(e) => setFormData({ ...formData, namaRS: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-[#23277A]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nama Dokter Perujuk di RS/Lab/Klinik tersebut (opsional)
+                  </label>
+                  <SearchableDoctorSelect
+                    value={formData.namaDokter || ''}
+                    onChange={(val) => setFormData({ ...formData, namaDokter: val })}
+                    placeholder="Cari atau pilih nama dokter..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Sub-pilihan untuk Rujukan Dokter */}
             {formData.referal === 'Dokter Umum dan Dokter Spesialis' && (
               <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3 animate-fadeIn">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -567,11 +623,28 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      placeholder="Contoh: RSUD Dr. M. Djamil / RS Mitra"
+                      placeholder="Contoh: RSUD Dr. M. Djamil / LAB MMC / RS Mitra"
                       value={formData.namaRS || ''}
                       onChange={(e) => setFormData({ ...formData, namaRS: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-[#23277A]"
                     />
+                    {/* Quick chips for doctor RS */}
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {DEFAULT_RS_LAB_KLINIK_LIST.map((rsName) => (
+                        <button
+                          key={rsName}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, namaRS: rsName })}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-all ${
+                            formData.namaRS === rsName
+                              ? 'bg-[#23277A] text-white border-[#23277A]'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {rsName}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

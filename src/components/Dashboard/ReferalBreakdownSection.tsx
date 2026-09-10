@@ -94,6 +94,7 @@ const CATEGORY_COLORS: { [key: string]: string } = {
   'Google': '#2563EB',
   // Dokter & RS
   'Dokter Umum dan Dokter Spesialis': '#0D9488',
+  'RS/LAB/KLINIK': '#0891B2',
   'Rujukan Dokter': '#0D9488',
   'Rujukan RS / Faskes': '#0891B2',
   // Offline & Walk-in (Termasuk GMaps & Plang Toko)
@@ -261,7 +262,7 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
       const cat = p.referalCategory;
 
       // 1. Dokter & Rumah Sakit
-      if (cat === 'Dokter & Faskes' || ref === 'Dokter Umum dan Dokter Spesialis' || doctor !== '' || rs !== '') {
+      if (cat === 'Dokter & Faskes' || ref === 'Dokter Umum dan Dokter Spesialis' || ref === 'RS/LAB/KLINIK' || doctor !== '' || rs !== '') {
         const docName = doctor || 'Dokter Spesialis / RS Mitra';
         return {
           key: `DOC_${docName.toLowerCase().replace(/\s+/g, '_')}`,
