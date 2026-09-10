@@ -44,10 +44,7 @@ export function LoginPage({ users, onLogin }: LoginPageProps) {
           <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-[#161852] opacity-50 blur-xl"></div>
           
           <div className="relative z-10 flex flex-col items-center justify-center">
-            <div className="mb-4">
-              <EarsoundLogo variant="dark" size="lg" />
-            </div>
-            <p className="text-indigo-200/80 text-sm mt-2 font-medium tracking-wide">Management Information System</p>
+            <EarsoundLogo size="lg" showSubtitle={true} subtitleText="Management Information System" />
           </div>
         </div>
 
