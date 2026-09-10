@@ -98,10 +98,13 @@ export const EarsoundLogo: React.FC<EarsoundLogoProps> = ({
         {/* Official Earsound Logotype */}
         {variant !== 'icon-only' && (
           <span
-            className={`font-black tracking-tighter font-sans ${textColor} leading-none ${sizeConfig.textH}`}
+            className={`tracking-tight ${textColor} leading-none select-none ${sizeConfig.textH}`}
             style={{ 
-              letterSpacing: '-0.04em',
-              fontWeight: 900
+              fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              letterSpacing: '-0.03em',
+              fontWeight: 800,
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale',
             }}
           >
             earsound
