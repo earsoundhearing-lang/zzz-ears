@@ -177,7 +177,7 @@ export const POSReceiptModal: React.FC<POSReceiptModalProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Faktur Resmi (A4)</span>
+              <span>Faktur / Invoice Resmi (A5 / A4)</span>
             </button>
           </div>
 

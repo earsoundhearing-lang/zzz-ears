@@ -497,7 +497,7 @@ export const ReparasiReportComponent: React.FC<ReparasiReportProps> = ({
             }
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 max-w-2xl w-full flex flex-col max-h-[92vh] my-auto overflow-hidden relative animate-scaleIn print:p-0 print:border-none print:shadow-none print:max-h-none print:w-full">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 max-w-4xl w-full flex flex-col max-h-[92vh] my-auto overflow-hidden relative animate-scaleIn print:p-0 print:border-none print:shadow-none print:max-h-none print:w-full">
             {/* Modal Header Controls */}
             <div className="bg-[#1E2269] text-white px-3 py-2.5 sm:px-4 sm:py-3 flex justify-between items-center shrink-0 print:hidden border-b border-amber-400/30 gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -589,7 +589,9 @@ export const ReparasiReportComponent: React.FC<ReparasiReportProps> = ({
               {/* Document Title */}
               <div className="text-center">
                 <h2 className="text-xs sm:text-sm font-black text-[#23277A] uppercase tracking-widest bg-[#EEF2FF] border border-[#C7D2FE] inline-block px-3.5 py-1 rounded-md shadow-2xs">
-                  TANDA TERIMA REPARASI & SERVICE ABD
+                  {selectedReceipt.jenisABD?.toLowerCase().includes('earmould') || selectedReceipt.id.toUpperCase().startsWith('ERM')
+                    ? 'TANDA TERIMA PEMBUATAN EARMOULD'
+                    : 'TANDA TERIMA SERVIS & REPARASI ABD'}
                 </h2>
               </div>
 

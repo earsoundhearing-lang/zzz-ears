@@ -250,15 +250,15 @@ export async function createPdfBlobFromElement(elementId: string): Promise<Blob>
           });
         });
 
-        // 4. Format cloned container for clean A4 printing layout
+        // 4. Format cloned container for clean A5 Landscape printing layout
         const clonedEl = clonedDoc.getElementById(elementId);
         if (clonedEl) {
           clonedEl.style.overflow = 'visible';
           clonedEl.style.maxHeight = 'none';
           clonedEl.style.height = 'auto';
-          clonedEl.style.width = '780px';
+          clonedEl.style.width = '880px';
           clonedEl.style.margin = '0 auto';
-          clonedEl.style.padding = '20px';
+          clonedEl.style.padding = '12px';
           clonedEl.style.backgroundColor = '#ffffff';
         }
       },
@@ -270,14 +270,14 @@ export async function createPdfBlobFromElement(elementId: string): Promise<Blob>
 
   const imgData = canvas.toDataURL('image/jpeg', 0.98);
   const pdf = new jsPDF({
-    orientation: 'portrait',
+    orientation: 'landscape',
     unit: 'mm',
-    format: 'a4',
+    format: 'a5',
   });
 
-  const pageWidth = 210; // A4 width in mm
-  const pageHeight = 297; // A4 height in mm
-  const margin = 10; // 10mm margin
+  const pageWidth = 210; // A5 Landscape width in mm
+  const pageHeight = 148; // A5 Landscape height in mm
+  const margin = 6; // 6mm margin
   const contentWidth = pageWidth - margin * 2;
   const contentHeight = (canvas.height * contentWidth) / canvas.width;
 
@@ -419,13 +419,14 @@ export function printHtmlElement(elementId: string, docTitle: string = 'Dokumen 
               <title>${docTitle}</title>
               ${stylesHtml}
               <style>
-                @page { size: A4 portrait; margin: 10mm; }
+                @page { size: A5 landscape; margin: 5mm 8mm; }
                 body { 
                   background-color: #ffffff !important; 
                   color: #0f172a !important; 
-                  margin: 0; 
-                  padding: 20px; 
-                  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  margin: 0 auto; 
+                  padding: 10px; 
+                  max-width: 210mm;
+                  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                 }

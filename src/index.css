@@ -51,8 +51,8 @@
   }
   
   @page {
-    size: A4 portrait;
-    margin: 8mm 10mm;
+    size: A5 landscape;
+    margin: 5mm 8mm;
   }
 
   /* Hide navigation, sidebars, buttons and modals backgrounds */
@@ -72,9 +72,10 @@
     display: block !important;
     position: relative !important;
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: 210mm !important;
+    box-sizing: border-box !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     overflow: visible !important;
     background: white !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
