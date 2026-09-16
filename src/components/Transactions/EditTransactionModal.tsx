@@ -10,11 +10,13 @@ import {
   FittingType,
   AksesorisTypeCategory,
   BsiAccount,
-  PaymentMethod
+  PaymentMethod,
+  ABDBonusItem
 } from '../../types';
-import { ABD_PRICE_CATALOG, PAKET_BUNDLING, CATALOG_AKSESORIS_SERVICE } from '../../data/priceCatalog';
+import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, AKSESORIS_CATEGORY_LIST } from '../../data/priceCatalog';
+import { findAksesorisSku } from '../../data/skuCatalog';
 import { PaymentSelector } from './PaymentSelector';
-import { Edit3, Save, X, Calculator, Stethoscope, Volume2, ShoppingBag } from 'lucide-react';
+import { Edit3, Save, X, Calculator, Stethoscope, Volume2, ShoppingBag, Plus, Trash2, Tag, CheckCircle2 } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatters';
 
 interface EditTransactionModalProps {
@@ -106,13 +108,47 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const [tipeABD2, setTipeABD2] = useState<string>(abd?.tipeABD2 || '');
   const [nomorSeriABD2, setNomorSeriABD2] = useState<string>(abd?.nomorSeriABD2 || '');
   const [hargaABD2, setHargaABD2] = useState<number>(abd?.hargaABD2 || 0);
-  const [paketBundling, setPaketBundling] = useState<string>(abd?.paketBundling || 'Tanpa Bundling');
-  const [keteranganBundling, setKeteranganBundling] = useState<string>(abd?.keteranganBundling || '');
-  const [hargaBundling, setHargaBundling] = useState<number>(abd?.hargaBundling || 0);
+  const [bonusItems, setBonusItems] = useState<ABDBonusItem[]>(abd?.bonusItems || []);
+  const [bonusKategori, setBonusKategori] = useState<string>('Baterai ABD');
+  const [bonusTipe, setBonusTipe] = useState<string>('Baterai 13 Sonic');
+  const [bonusQty, setBonusQty] = useState<number>(1);
   const [fittingType, setFittingType] = useState<FittingType>(abd?.fittingType || 'Binaural');
   const [abdHargaJual, setAbdHargaJual] = useState<number>(abd?.hargaJual || 0);
   const [abdDiskon, setAbdDiskon] = useState<number>(abd?.diskon || 0);
   const [abdUangMuka, setAbdUangMuka] = useState<number>(abd?.uangMuka || 0);
+
+  const filteredBonusCatalogEdit = CATALOG_AKSESORIS_SERVICE.filter(item => item.kategori === bonusKategori);
+
+  const handleBonusCategoryChangeEdit = (cat: string) => {
+    setBonusKategori(cat);
+    const items = CATALOG_AKSESORIS_SERVICE.filter(i => i.kategori === cat);
+    if (items.length > 0) {
+      setBonusTipe(items[0].nama);
+    } else {
+      setBonusTipe('');
+    }
+  };
+
+  const handleAddBonusItemEdit = (kategori?: string, tipe?: string, qty: number = 1) => {
+    const finalKat = kategori || bonusKategori;
+    const finalTipe = tipe || bonusTipe;
+    if (!finalTipe.trim()) return;
+
+    const sku = findAksesorisSku(finalTipe, finalKat);
+    const newItem: ABDBonusItem = {
+      id: `bonus-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      kategori: finalKat,
+      tipe: finalTipe,
+      sku: sku !== '-' ? sku : undefined,
+      qty: qty > 0 ? qty : 1,
+      harga: 0
+    };
+    setBonusItems(prev => [...prev, newItem]);
+  };
+
+  const handleRemoveBonusItemEdit = (id: string) => {
+    setBonusItems(prev => prev.filter(item => item.id !== id));
+  };
 
   // Sync state if props change
   useEffect(() => {
@@ -154,9 +190,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       setTipeABD2(abd.tipeABD2 || '');
       setNomorSeriABD2(abd.nomorSeriABD2 || '');
       setHargaABD2(abd.hargaABD2 || 0);
-      setPaketBundling(abd.paketBundling || 'Tanpa Bundling');
-      setKeteranganBundling(abd.keteranganBundling || '');
-      setHargaBundling(abd.hargaBundling || 0);
+      setBonusItems(abd.bonusItems || []);
       setFittingType(abd.fittingType || 'Binaural');
       setAbdHargaJual(abd.hargaJual || 0);
       setAbdDiskon(abd.diskon || 0);
@@ -257,9 +291,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         tipeABD2: fittingType === 'Binaural' ? tipeABD2 : undefined,
         nomorSeriABD2: fittingType === 'Binaural' ? nomorSeriABD2 : undefined,
         hargaABD2: fittingType === 'Binaural' ? hargaABD2 : undefined,
-        paketBundling: paketBundling !== 'Tanpa Bundling' ? paketBundling : undefined,
-        keteranganBundling,
-        hargaBundling,
+        bonusItems: bonusItems.length > 0 ? bonusItems : undefined,
         fittingType,
         hargaJual: grossTotal,
         diskon: abdDiskon,
@@ -636,63 +668,107 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                   </>
                 )}
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Paket Bundling</label>
-                  <select
-                    value={PAKET_BUNDLING.some(p => p.nama === paketBundling) ? paketBundling : (paketBundling === 'Tanpa Bundling' ? 'Tanpa Bundling' : 'Custom')}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPaketBundling(val);
-                      const foundPkg = PAKET_BUNDLING.find(p => p.nama === val);
-                      if (foundPkg) {
-                        setHargaBundling(foundPkg.totalHarga);
-                        const itemsText = foundPkg.items.map(it => it.namaItem).join(', ');
-                        setKeteranganBundling(`Paket ${foundPkg.nama}: ${itemsText}`);
-                      } else if (val === 'Tanpa Bundling') {
-                        setHargaBundling(0);
-                        setKeteranganBundling('');
-                      }
-                    }}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2 font-bold text-amber-900"
-                  >
-                    <option value="Tanpa Bundling">Tanpa Bundling (Rp 0)</option>
-                    {PAKET_BUNDLING.map(p => (
-                      <option key={p.nama} value={p.nama}>
-                        Paket {p.nama} ({formatRupiah(p.totalHarga)})
-                      </option>
-                    ))}
-                    <option value="Custom">Custom / Lainnya</option>
-                  </select>
-                  {!PAKET_BUNDLING.some(p => p.nama === paketBundling) && paketBundling !== 'Tanpa Bundling' && (
-                    <input
-                      type="text"
-                      value={paketBundling}
-                      onChange={(e) => setPaketBundling(e.target.value)}
-                      placeholder="Nama paket custom..."
-                      className="w-full bg-amber-50 border border-amber-300 rounded-xl p-2 font-bold mt-1.5 text-xs text-slate-800"
-                    />
+                {/* Bonus Aksesoris ABD Manager */}
+                <div className="col-span-1 sm:col-span-2 space-y-3 bg-[#FFFDF5] p-3.5 rounded-2xl border border-amber-300">
+                  <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                    <h5 className="font-extrabold text-amber-950 text-xs flex items-center gap-1.5">
+                      <span>🎁 Bonus Aksesoris ABD (Kelola Item Manual)</span>
+                    </h5>
+                    <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">
+                      Stok Otomatis Terhubung
+                    </span>
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleAddBonusItemEdit('Baterai ABD', 'Baterai 13 Sonic', 1)}
+                      className="px-2 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> + Baterai 13 Sonic
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBonusItemEdit('Aidtip & Earmould', 'Aidtip Set', 1)}
+                      className="px-2 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> + Aidtip Set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBonusItemEdit('Aksesoris ABD', 'Drying Jar – Standard', 1)}
+                      className="px-2 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> + Drying Jar Standard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBonusItemEdit('Aksesoris ABD', 'Earsound Pouch', 1)}
+                      className="px-2 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> + Earsound Pouch
+                    </button>
+                  </div>
+
+                  {/* Manual Selector */}
+                  <div className="grid grid-cols-12 gap-2 bg-white p-2.5 rounded-xl border border-amber-200 items-end">
+                    <div className="col-span-5">
+                      <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Kategori</label>
+                      <select
+                        value={bonusKategori}
+                        onChange={(e) => handleBonusCategoryChangeEdit(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800"
+                      >
+                        {AKSESORIS_CATEGORY_LIST.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-5">
+                      <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Item Aksesoris</label>
+                      <select
+                        value={bonusTipe}
+                        onChange={(e) => setBonusTipe(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800"
+                      >
+                        {filteredBonusCatalogEdit.map(item => (
+                          <option key={item.sku} value={item.nama}>{item.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => handleAddBonusItemEdit(bonusKategori, bonusTipe, bonusQty)}
+                        className="w-full py-1.5 bg-[#23277A] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-0.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Tambah
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bonus list */}
+                  {bonusItems.length > 0 ? (
+                    <div className="space-y-1 bg-white p-2 rounded-xl border border-amber-200">
+                      {bonusItems.map(item => (
+                        <div key={item.id} className="flex items-center justify-between text-xs py-0.5">
+                          <span className="font-bold text-slate-800">{item.tipe} ({item.qty} Pcs)</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveBonusItemEdit(item.id)}
+                            className="text-rose-600 hover:text-rose-800 p-0.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-amber-800 italic text-center">Tidak ada bonus aksesoris.</div>
                   )}
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Harga Paket Bundling (Rp)</label>
-                  <input
-                    type="number"
-                    value={hargaBundling}
-                    onChange={(e) => setHargaBundling(parseInt(e.target.value) || 0)}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"
-                  />
-                </div>
-
-                <div className="col-span-1 sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Isi / Keterangan Bundling</label>
-                  <textarea
-                    rows={2}
-                    value={keteranganBundling}
-                    placeholder="Earmould Custom, Baterai 5 Roll, Electric Drying Box, Garansi Service 2 Tahun..."
-                    onChange={(e) => setKeteranganBundling(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2 font-medium text-xs"
-                  />
                 </div>
 
                 <div>

@@ -593,8 +593,30 @@ export default function App() {
       inventoryDbOps.saveInventoryABD(invABD2);
     }
 
-    // Auto deduct accessory stock included in Bundling packages
-    if (tx.paketBundling) {
+    // Auto deduct accessory stock included in Bonus Items or Bundling packages
+    if (tx.bonusItems && tx.bonusItems.length > 0) {
+      tx.bonusItems.forEach((item, index) => {
+        if (item.kategori === 'Earmould') return;
+        const itemSku = item.sku || findAksesorisSku(item.tipe, item.kategori);
+        const master = (itemSku && itemSku !== '-') ? getAksesorisBySku(itemSku) : undefined;
+        const invAks: AksesorisInventoryEntry = {
+          id: `inv-aks-bonus-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
+          type: 'KELUAR_TERJUAL',
+          tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
+          sumberTujuan: tx.namaPasien || 'Pasien',
+          kategori: master?.kategori || item.kategori,
+          tipe: master?.nama || item.tipe,
+          sku: master?.sku || (itemSku && itemSku !== '-' ? itemSku : undefined),
+          qty: item.qty || 1,
+          keterangan: `Bonus Aksesoris ABD (${tx.tipeABD}) - ${master?.nama || item.tipe} (${item.qty || 1} Pcs) | Faktur: ${tx.nomorFakturPenjualan}`,
+          noInvoice: tx.nomorFakturPenjualan,
+          namaCustomer: tx.namaPasien,
+          cabangTujuan: txWithBranch.branchCode,
+          branchCode: txWithBranch.branchCode || 'YM'
+        };
+        inventoryDbOps.saveInventoryAksesoris(invAks);
+      });
+    } else if (tx.paketBundling) {
       const bundlingEntries = generateBundlingInventoryEntries(tx, txWithBranch.branchCode || 'YM');
       bundlingEntries.forEach(entry => {
         inventoryDbOps.saveInventoryAksesoris(entry);
@@ -679,12 +701,34 @@ export default function App() {
         inventoryDbOps.saveInventoryABD(invEntry);
       }
 
-      // 2. Re-sync bundling accessories inventory
+      // 2. Re-sync bonus / bundling accessories inventory
       inventoryAksesoris
         .filter((inv) => inv.noInvoice === updatedTx.nomorFakturPenjualan || inv.keterangan?.includes(updatedTx.nomorFakturPenjualan))
         .forEach((inv) => inventoryDbOps.deleteInventoryAksesoris(inv.id));
 
-      if (updatedTx.paketBundling) {
+      if (updatedTx.bonusItems && updatedTx.bonusItems.length > 0) {
+        updatedTx.bonusItems.forEach((item, index) => {
+          if (item.kategori === 'Earmould') return;
+          const itemSku = item.sku || findAksesorisSku(item.tipe, item.kategori);
+          const master = (itemSku && itemSku !== '-') ? getAksesorisBySku(itemSku) : undefined;
+          const invAks: AksesorisInventoryEntry = {
+            id: `inv-aks-bonus-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
+            type: 'KELUAR_TERJUAL',
+            tanggal: updatedTx.tanggal || new Date().toISOString().split('T')[0],
+            sumberTujuan: updatedTx.namaPasien || 'Pasien',
+            kategori: master?.kategori || item.kategori,
+            tipe: master?.nama || item.tipe,
+            sku: master?.sku || (itemSku && itemSku !== '-' ? itemSku : undefined),
+            qty: item.qty || 1,
+            keterangan: `Bonus Aksesoris ABD (${updatedTx.tipeABD}) - ${master?.nama || item.tipe} (${item.qty || 1} Pcs) | Faktur: ${updatedTx.nomorFakturPenjualan}`,
+            noInvoice: updatedTx.nomorFakturPenjualan,
+            namaCustomer: updatedTx.namaPasien,
+            cabangTujuan: bCode,
+            branchCode: bCode
+          };
+          inventoryDbOps.saveInventoryAksesoris(invAks);
+        });
+      } else if (updatedTx.paketBundling) {
         const bundlingEntries = generateBundlingInventoryEntries(updatedTx, bCode);
         bundlingEntries.forEach(entry => {
           inventoryDbOps.saveInventoryAksesoris(entry);

@@ -229,6 +229,8 @@ export function exportABDCSV(
     const jumlahNet1 = hargaJual1 + bundlingPerItem - diskonPerItem;
     const sku1 = t.skuABD1 || t.sku || findABDSku(t.tipeABD, t.modelABD);
     
+    const bonusText = t.bonusItems && t.bonusItems.length > 0 ? t.bonusItems.map(b => `${b.tipe} (${b.qty})`).join('; ') : (t.paketBundling || 'Tanpa Bundling');
+
     rows.push([
       t.nomorFakturPenjualan,
       t.tanggal,
@@ -244,7 +246,7 @@ export function exportABDCSV(
       diskonPerItem,
       jumlahNet1,
       referal,
-      t.paketBundling || 'Tanpa Bundling',
+      bonusText,
       paymentMethod
     ]);
 
@@ -269,7 +271,7 @@ export function exportABDCSV(
         diskonPerItem,
         jumlahNet2,
         referal,
-        t.paketBundling || 'Tanpa Bundling',
+        bonusText,
         paymentMethod
       ]);
     }

@@ -8,13 +8,14 @@ import {
   AppUser,
   JenisEarmould,
   ABDInventoryEntry,
-  AksesorisInventoryEntry
+  AksesorisInventoryEntry,
+  ABDBonusItem
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
 import { generateBranchInvoiceNumber, getBranchByCode } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
-import { ABD_PRICE_CATALOG, PAKET_BUNDLING } from '../../data/priceCatalog';
+import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, AKSESORIS_CATEGORY_LIST } from '../../data/priceCatalog';
 import { findABDSku, findAksesorisSku } from '../../data/skuCatalog';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
 import { EditTransactionModal } from './EditTransactionModal';
@@ -248,10 +249,46 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
     }
   };
 
-  // Paket Bundling
-  const [selectedBundling, setSelectedBundling] = useState<string>('Tanpa Bundling');
-  const [keteranganBundling, setKeteranganBundling] = useState<string>('');
-  const [hargaBundling, setHargaBundling] = useState<number>(0);
+  // Item Bonus Aksesoris Manual State
+  const [bonusItems, setBonusItems] = useState<ABDBonusItem[]>([]);
+  const [bonusKategori, setBonusKategori] = useState<string>('Baterai ABD');
+  const [bonusTipe, setBonusTipe] = useState<string>('Baterai 13 Sonic');
+  const [bonusQty, setBonusQty] = useState<number>(1);
+
+  const filteredBonusCatalog = useMemo(() => {
+    return CATALOG_AKSESORIS_SERVICE.filter(item => item.kategori === bonusKategori);
+  }, [bonusKategori]);
+
+  const handleBonusCategoryChange = (cat: string) => {
+    setBonusKategori(cat);
+    const items = CATALOG_AKSESORIS_SERVICE.filter(i => i.kategori === cat);
+    if (items.length > 0) {
+      setBonusTipe(items[0].nama);
+    } else {
+      setBonusTipe('');
+    }
+  };
+
+  const handleAddBonusItem = (kategori?: string, tipe?: string, qty: number = 1) => {
+    const finalKat = kategori || bonusKategori;
+    const finalTipe = tipe || bonusTipe;
+    if (!finalTipe.trim()) return;
+
+    const sku = findAksesorisSku(finalTipe, finalKat);
+    const newItem: ABDBonusItem = {
+      id: `bonus-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      kategori: finalKat,
+      tipe: finalTipe,
+      sku: sku !== '-' ? sku : undefined,
+      qty: qty > 0 ? qty : 1,
+      harga: 0
+    };
+    setBonusItems(prev => [...prev, newItem]);
+  };
+
+  const handleRemoveBonusItem = (id: string) => {
+    setBonusItems(prev => prev.filter(item => item.id !== id));
+  };
 
   // Earmould Integration
   const [pilihEarmould, setPilihEarmould] = useState<boolean>(true);
@@ -317,21 +354,8 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
     }
   };
 
-  const handleBundlingSelect = (bundlingName: string) => {
-    setSelectedBundling(bundlingName);
-    const foundPkg = PAKET_BUNDLING.find((p) => p.nama === bundlingName);
-    if (foundPkg) {
-      setHargaBundling(foundPkg.totalHarga);
-      const itemsText = foundPkg.items.map(it => it.namaItem).join(', ');
-      setKeteranganBundling(`Paket ${foundPkg.nama}: ${itemsText}`);
-    } else {
-      setHargaBundling(0);
-      setKeteranganBundling('');
-    }
-  };
-
   // Calculated Totals
-  const grossTotal = hargaABD1 + (fittingType === 'Binaural' ? hargaABD2 : 0) + hargaBundling;
+  const grossTotal = hargaABD1 + (fittingType === 'Binaural' ? hargaABD2 : 0);
   const netTotal = Math.max(0, grossTotal - diskon);
   const effectiveDP = isDP ? Math.min(netTotal, uangMuka) : netTotal;
   const sisaPembayaran = Math.max(0, netTotal - effectiveDP);
@@ -381,8 +405,8 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
       }
     }
 
-    if (hargaABD1 < 0 || hargaABD2 < 0 || hargaBundling < 0) {
-      alert('Harga (Unit/Bundling) tidak boleh bernilai negatif.');
+    if (hargaABD1 < 0 || hargaABD2 < 0) {
+      alert('Harga Unit tidak boleh bernilai negatif.');
       return;
     }
     if (diskon < 0) {
@@ -429,9 +453,7 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
       tipeABD2: finalTipeAbd2,
       nomorSeriABD2: fittingType === 'Binaural' ? nomorSeriABD2 : undefined,
       hargaABD2: fittingType === 'Binaural' ? hargaABD2 : undefined,
-      paketBundling: selectedBundling !== 'Tanpa Bundling' ? selectedBundling : undefined,
-      keteranganBundling: keteranganBundling.trim() || undefined,
-      hargaBundling: hargaBundling > 0 ? hargaBundling : undefined,
+      bonusItems: bonusItems.length > 0 ? bonusItems : undefined,
       pilihEarmould,
       jenisEarmould: pilihEarmould ? jenisEarmould : undefined,
       jenisEarmould2: (pilihEarmould && fittingType === 'Binaural') ? jenisEarmould2 : undefined,
@@ -450,6 +472,7 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
     };
 
     onAddTransaction(newTx);
+    setBonusItems([]);
     setShowForm(false);
   };
 
@@ -968,51 +991,174 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
               </div>
             </div>
           )}
-          {/* Row 5: Paket Bundling Details */}
-          <div className="space-y-3 bg-amber-50/60 p-4 rounded-2xl border border-amber-200">
-            <h4 className="font-extrabold text-amber-900 uppercase tracking-wider text-[11px] flex items-center justify-between">
-              <span>Fasilitas & Paket Bundling Pembelian</span>
-              <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-semibold">Tampil di Invoice</span>
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Row 5: Bonus Aksesoris Pembelian ABD (Tambahkan Manual) */}
+          <div className="space-y-4 bg-[#FFFDF5] p-4.5 rounded-2xl border-2 border-amber-300 shadow-sm">
+            <div className="flex items-center justify-between border-b border-amber-200/80 pb-2.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Pilih Paket Bundling</label>
-                <select
-                  value={selectedBundling}
-                  onChange={(e) => handleBundlingSelect(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-bold text-amber-900 focus:ring-2 focus:ring-amber-500"
+                <h4 className="font-black text-amber-950 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                  <span>🎁 Bonus Aksesoris Pembelian ABD</span>
+                </h4>
+                <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                  Tambahkan item aksesoris / bonus secara manual (Otomatis mengurangi stok inventori aksesoris)
+                </p>
+              </div>
+              <span className="text-[10px] text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                Stok Otomatis Terhubung
+              </span>
+            </div>
+
+            {/* Quick Bonus Preset Shortcuts */}
+            <div>
+              <label className="block text-[11px] font-bold text-amber-900 mb-1.5 flex items-center gap-1">
+                <Tag className="w-3 h-3 text-amber-700" />
+                <span>Pilihan Cepat Bonus Favorit (Sekali Klik):</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Baterai ABD', 'Baterai 13 Sonic', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
                 >
-                  <option value="Tanpa Bundling">Tanpa Bundling (Rp 0)</option>
-                  {PAKET_BUNDLING.map((pkg) => (
-                    <option key={pkg.nama} value={pkg.nama}>
-                      Paket {pkg.nama} (+ {formatRupiah(pkg.totalHarga)})
-                    </option>
+                  <Plus className="w-3 h-3 text-amber-700" /> + Baterai 13 Sonic (1 Roll)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Baterai ABD', 'Baterai 675 Sonic', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" /> + Baterai 675 Sonic (1 Roll)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Aidtip & Earmould', 'Aidtip Set', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" /> + Aidtip Set (1 Pcs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Aksesoris ABD', 'Drying Jar – Standard', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" /> + Drying Jar Standard (1 Pcs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Aksesoris ABD', 'Earsound Pouch', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" /> + Earsound Pouch (1 Pcs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem('Aksesoris ABD', 'Baterai Checker', 1)}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3 h-3 text-amber-700" /> + Baterai Checker (1 Pcs)
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Form to Select Category & Item */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 bg-white p-3 rounded-xl border border-amber-200 items-end">
+              <div className="md:col-span-4">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Kategori Aksesoris</label>
+                <select
+                  value={bonusKategori}
+                  onChange={(e) => handleBonusCategoryChange(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800"
+                >
+                  {AKSESORIS_CATEGORY_LIST.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
-                  <option value="Custom Bundling">Custom Paket Bundling</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Harga Bundling (Rp)</label>
+              <div className="md:col-span-5">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Pilih Item Aksesoris Bonus</label>
+                {filteredBonusCatalog.length > 0 ? (
+                  <select
+                    value={bonusTipe}
+                    onChange={(e) => setBonusTipe(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800"
+                  >
+                    {filteredBonusCatalog.map((item) => (
+                      <option key={item.sku} value={item.nama}>
+                        {item.nama} ({item.sku})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={bonusTipe}
+                    onChange={(e) => setBonusTipe(e.target.value)}
+                    placeholder="Nama item aksesoris..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800"
+                  />
+                )}
+              </div>
+
+              <div className="md:col-span-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Qty</label>
                 <input
                   type="number"
-                  min={0}
-                  value={hargaBundling}
-                  onChange={(e) => setHargaBundling(parseInt(e.target.value) || 0)}
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-bold text-amber-900"
+                  min={1}
+                  value={bonusQty}
+                  onChange={(e) => setBonusQty(parseInt(e.target.value) || 1)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-bold text-center text-slate-800"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Rincian Fasilitas Bundling (Dapat Apa Saja)</label>
-                <textarea
-                  rows={2}
-                  value={keteranganBundling}
-                  placeholder="Contoh: Earmould Custom, Baterai 5 Roll, Electric Drying Box, Garansi Service 2 Tahun..."
-                  onChange={(e) => setKeteranganBundling(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs font-medium text-slate-800"
-                />
+              <div className="md:col-span-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddBonusItem(bonusKategori, bonusTipe, bonusQty)}
+                  className="w-full py-2 px-3 bg-[#23277A] hover:bg-[#1b1f63] text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah
+                </button>
               </div>
+            </div>
+
+            {/* Added Bonus Items List */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold text-amber-900">Daftar Bonus Aksesoris Ditambahkan:</label>
+              {bonusItems.length > 0 ? (
+                <div className="space-y-1.5 bg-white p-2.5 rounded-xl border border-amber-200 divide-y divide-amber-100">
+                  {bonusItems.map((bItem) => (
+                    <div key={bItem.id} className="pt-1.5 first:pt-0 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900">{bItem.tipe}</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+                          {bItem.kategori} {bItem.sku ? `(${bItem.sku})` : ''}
+                        </span>
+                        <span className="font-mono font-bold text-amber-900 text-[11px]">
+                          Qty: {bItem.qty} Pcs
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold rounded-md">
+                          GRATIS / BONUS
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBonusItem(bItem.id)}
+                          className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Bonus"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl text-center text-[11px] text-amber-800 font-medium">
+                  Belum ada item bonus aksesoris yang ditambahkan. Gunakan pilihan cepat di atas atau form untuk menambah bonus.
+                </div>
+              )}
             </div>
 
             {/* Integrasi Cetak Earmould ke Lab */}
@@ -1071,7 +1217,7 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
           <div className="space-y-3 bg-slate-900 text-white p-5 rounded-2xl border border-slate-800">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Total Gross (ABD 1 + ABD 2 + Bundling)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Total Gross ABD (ABD 1 + ABD 2)</label>
                 <div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm font-black text-amber-400">
                   {formatRupiah(grossTotal)}
                 </div>
@@ -1265,12 +1411,19 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
                       <span className="font-bold text-purple-800">{t.tipeABD2} {t.modelABD2 && t.modelABD2 !== '-' ? `[${t.modelABD2}]` : ''} ({t.nomorSeriABD2 || '-'})</span>
                     </div>
                   )}
-                  {t.paketBundling && (
+                  {t.bonusItems && t.bonusItems.length > 0 ? (
+                    <div className="flex justify-between items-start gap-1">
+                      <span className="text-slate-500">Bonus Aksesoris:</span>
+                      <span className="font-bold text-emerald-800 text-right">
+                        {t.bonusItems.map(b => `${b.tipe} (${b.qty} Pcs)`).join(', ')}
+                      </span>
+                    </div>
+                  ) : t.paketBundling ? (
                     <div className="flex justify-between">
                       <span className="text-slate-500">Paket Bundling:</span>
                       <span className="font-bold text-amber-800">{t.paketBundling}</span>
                     </div>
-                  )}
+                  ) : null}
                   <div className="flex justify-between">
                     <span className="text-slate-500">HAC Consultant:</span>
                     <span className="font-medium text-slate-700">{t.hac}</span>
@@ -1357,11 +1510,15 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
                           <div className="text-xs font-semibold text-purple-800">Unit 2: {t.tipeABD2}</div>
                         )}
                         <div className="text-xs text-slate-500">HAC: {t.hac}</div>
-                        {t.paketBundling && (
+                        {t.bonusItems && t.bonusItems.length > 0 ? (
+                          <div className="text-[10px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded inline-block mt-0.5 max-w-[200px] truncate" title={t.bonusItems.map(b => `${b.tipe} (${b.qty} Pcs)`).join(', ')}>
+                            🎁 {t.bonusItems.map(b => `${b.tipe} (${b.qty})`).join(', ')}
+                          </div>
+                        ) : t.paketBundling ? (
                           <div className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
                             {t.paketBundling}
                           </div>
-                        )}
+                        ) : null}
                       </td>
                       <td className="p-3.5">
                         <span className="inline-block px-2 py-0.5 bg-indigo-100 text-[#23277A] rounded-md font-bold text-[10px] mb-1">

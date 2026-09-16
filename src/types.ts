@@ -321,6 +321,16 @@ export interface JasaPeriksaTransaction {
 // 3. ABD
 export type FittingType = 'Monoaural (Kanan)' | 'Monoaural (Kiri)' | 'Binaural';
 
+export interface ABDBonusItem {
+  id: string;
+  kategori: string;
+  tipe: string;
+  sku?: string;
+  qty: number;
+  harga?: number;
+  noSeri?: string;
+}
+
 export interface ABDTransaction {
   id: string;
   tanggal: string;
@@ -343,6 +353,7 @@ export interface ABDTransaction {
   paketBundling?: 'Tanpa Bundling' | 'Basic' | 'Essential' | 'Exclusive' | string;
   keteranganBundling?: string; // Keterangan detail isi paket bundling
   hargaBundling?: number; // Harga Paket Bundling
+  bonusItems?: ABDBonusItem[]; // Item Bonus Aksesoris Tambahan Manual
   pilihEarmould?: boolean; // Integrasi Earmould
   jenisEarmould?: JenisEarmould; // H/C, S/C, H/FS, S/FS
   jenisEarmould2?: JenisEarmould; // Jenis Earmould 2 jika binaural

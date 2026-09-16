@@ -160,7 +160,9 @@ export function generateWhatsAppReceiptMessage({
     }
 
     lines.push(`• Fitting: ${abd.fittingType || '-'}`);
-    if (abd.paketBundling) {
+    if (abd.bonusItems && abd.bonusItems.length > 0) {
+      lines.push(`• Bonus Aksesoris: ${abd.bonusItems.map(b => `${b.tipe} (${b.qty} Pcs)`).join(', ')}`);
+    } else if (abd.paketBundling) {
       lines.push(`• Paket Bundling: ${abd.paketBundling}`);
     }
 

@@ -669,7 +669,20 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       </tr>
                     )}
 
-                    {(abd.paketBundling || abd.keteranganBundling || (abd.hargaBundling && abd.hargaBundling > 0)) && (
+                    {abd.bonusItems && abd.bonusItems.length > 0 ? (
+                      <tr className="bg-[#F0FDF4] border-t border-emerald-200">
+                        <td className="py-2.5 px-3.5" colSpan={2}>
+                          <div className="text-emerald-950 font-bold text-xs leading-snug flex items-center gap-1">
+                            <span>🎁 Bonus Aksesoris Pembelian ABD:</span>
+                          </div>
+                          <div className="text-[11px] text-emerald-800 mt-0.5 font-medium">
+                            {abd.bonusItems.map(item => `${item.tipe} (${item.qty} Pcs)`).join(' • ')}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3.5 text-right font-mono text-emerald-800 font-bold text-xs">Bonus (Free)</td>
+                        <td className="py-2.5 px-3.5 text-right font-mono font-bold text-emerald-800 text-xs">{formatRupiah(0)}</td>
+                      </tr>
+                    ) : (abd.paketBundling || abd.keteranganBundling || (abd.hargaBundling && abd.hargaBundling > 0)) ? (
                       <tr className="bg-[#FFFDF5]">
                         <td className="py-2 px-3.5">
                           <div className="text-[#87550B] font-bold text-xs leading-snug">Paket Bundling Pembelian ({abd.paketBundling || 'Lengkap'})</div>
@@ -681,7 +694,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <td className="py-2 px-3.5 text-right font-mono text-[#87550B] font-bold text-xs">{formatRupiah(abd.hargaBundling || 0)}</td>
                         <td className="py-2 px-3.5 text-right font-mono font-bold text-[#87550B] text-xs">{formatRupiah(abd.hargaBundling || 0)}</td>
                       </tr>
-                    )}
+                    ) : null}
                   </>
                 )}
               </tbody>
