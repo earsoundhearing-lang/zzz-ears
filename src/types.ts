@@ -34,7 +34,8 @@ export type BsiAccount =
   | 'BSI 7348014514'
   | 'BSI 7368736893'
   | 'BSI 7368737822'
-  | 'BSI 8888977822';
+  | 'BSI 8888977822'
+  | 'BSI 9009343910';
 
 export type PaymentMethod = 
   | 'Cash' 
@@ -180,6 +181,7 @@ export interface AksesorisCartItem {
   subtype: string;
   jenisEarmouldDetails?: JenisEarmould;
   sisiEarmouldDetails?: EarmouldSide;
+  noSeri?: string; // Serial number for Spare Part & Service or custom items
   qty: number;
   hargaJual: number;
   subtotal: number;
@@ -196,6 +198,7 @@ export interface AksesorisTransaction {
   jenisEarmouldDetails?: JenisEarmould; // H/C, S/C, H/FS, S/FS
   jenisEarmouldDetails2?: JenisEarmould; // H/C, S/C, H/FS, S/FS for 2nd unit if Binaural
   sisiEarmouldDetails?: EarmouldSide; // Kanan, Kiri, Keduanya (Binaural)
+  noSeri?: string; // Serial number for Spare Part & Service
   qty: number;
   items?: AksesorisCartItem[]; // Support 1 patient buying >1 item in 1 transaction
   nomorFaktur: string; // INV-YM-000001

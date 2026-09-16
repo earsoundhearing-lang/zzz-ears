@@ -12,7 +12,8 @@ import {
   AksesorisCartItem,
   BranchCode,
   AppUser,
-  AksesorisInventoryEntry
+  AksesorisInventoryEntry,
+  ABDInventoryEntry
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
 import { generateBranchInvoiceNumber } from '../../utils/branches';
@@ -20,6 +21,7 @@ import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../u
 import { PaymentSelector } from './PaymentSelector';
 import { CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, CatalogItem } from '../../data/priceCatalog';
 import { findAksesorisSku, getAksesorisBySku } from '../../data/skuCatalog';
+import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus, getAvailableSonicABDStock } from '../../utils/sonicAmplifierHelper';
 import { ShoppingBag, Plus, Trash2, Search, Printer, ShoppingCart, UserCheck, ShieldCheck, Tag, X, PackageCheck, Edit3, MessageSquare, AlertCircle } from 'lucide-react';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
 import { EditTransactionModal } from './EditTransactionModal';
@@ -33,6 +35,7 @@ interface AksesorisSectionProps {
   currentUser: AppUser;
   selectedBranch: BranchCode;
   inventoryAksesoris?: AksesorisInventoryEntry[];
+  inventoryABD?: ABDInventoryEntry[];
   onAddTransaction: (transaction: AksesorisTransaction) => void;
   onSaveTransaction?: (transaction: AksesorisTransaction) => void;
   onDeleteTransaction: (id: string) => void;
@@ -81,6 +84,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
   currentUser,
   selectedBranch,
   inventoryAksesoris = [],
+  inventoryABD = [],
   onAddTransaction,
   onSaveTransaction,
   onDeleteTransaction,
@@ -102,6 +106,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
   const [jenisEarmould, setJenisEarmould] = useState<JenisEarmould>('S/C');
   const [jenisEarmould2, setJenisEarmould2] = useState<JenisEarmould>('S/C');
   const [sisiEarmould, setSisiEarmould] = useState<EarmouldSide>('Keduanya (Binaural)');
+  const [noSeri, setNoSeri] = useState<string>('');
   const [qty, setQty] = useState(1);
   const [hargaJual, setHargaJual] = useState(50000);
   const [diskon, setDiskon] = useState<number>(0);
@@ -128,6 +133,10 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
 
   // Calculate available stock for an item in the active branch
   const getBranchStock = (subtypeName: string, categoryName: string): number => {
+    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName)) {
+      return getAvailableSonicABDStock(subtypeName, inventoryABD, activeBranchCode).length;
+    }
+
     if (!inventoryAksesoris || inventoryAksesoris.length === 0) return 0;
     const sku = findAksesorisSku(subtypeName, categoryName);
     const master = (sku && sku !== '-') ? getAksesorisBySku(sku) : undefined;
@@ -164,6 +173,14 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     return Math.max(0, totalMasuk - totalKeluar);
   };
 
+  // List of available ABD items for Sonic Amplifier replacements in active branch
+  const availableSonicABDList = React.useMemo(() => {
+    if (category === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtype)) {
+      return getAvailableSonicABDStock(subtype, inventoryABD, activeBranchCode);
+    }
+    return [];
+  }, [category, subtype, inventoryABD, activeBranchCode]);
+
   const handlePatientSelect = (patientId: string) => {
     setIdPelanggan(patientId);
     const p = patients.find((pat) => pat.id === patientId);
@@ -175,6 +192,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
 
   const handleCategoryChange = (newCat: AksesorisTypeCategory) => {
     setCategory(newCat);
+    setNoSeri('');
     if (newCat === 'Baterai Alat Bantu Dengar') {
       const defaultItem = BATERAI_SUBTYPES[0];
       setSubtype(defaultItem ? defaultItem.nama : '13 Sonic');
@@ -285,12 +303,14 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       subtype: finalSubtype,
       jenisEarmouldDetails: category === 'Earmould' ? jenisEarmould : undefined,
       sisiEarmouldDetails: category === 'Earmould' ? sisiEarmould : undefined,
+      noSeri: noSeri.trim() || undefined,
       qty: effectiveQty,
       hargaJual,
       subtotal: effectiveQty * hargaJual,
     };
 
     setCartItems((prev) => [...prev, newItem]);
+    setNoSeri('');
     setQty(1);
   };
 
@@ -353,6 +373,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       jenisEarmouldDetails: firstItem.jenisEarmouldDetails,
       jenisEarmouldDetails2: jenisEarmould2,
       sisiEarmouldDetails: firstItem.sisiEarmouldDetails,
+      noSeri: firstItem?.noSeri,
       items: cartItems,
       qty: cartItems.reduce((acc, i) => acc + i.qty, 0),
       nomorFaktur,
@@ -661,17 +682,68 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                     ))}
                   </select>
                 ) : category === 'Spare Part dan Service' ? (
-                  <select
-                    value={subtype}
-                    onChange={(e) => handleSubtypeSelectChange(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs font-bold"
-                  >
-                    {SPAREPART_SERVICE_SUBTYPES.map((sub) => (
-                      <option key={sub.nama} value={sub.nama}>
-                        {sub.nama} ({formatRupiah(sub.harga)})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <select
+                      value={subtype}
+                      onChange={(e) => handleSubtypeSelectChange(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-800"
+                    >
+                      {SPAREPART_SERVICE_SUBTYPES.map((sub) => (
+                        <option key={sub.nama} value={sub.nama}>
+                          {sub.nama} ({formatRupiah(sub.harga)})
+                        </option>
+                      ))}
+                    </select>
+
+                    {isSonicAmplifierSubtype(subtype) ? (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1 flex justify-between items-center">
+                          <span>No. Seri ABD yang Digunakan (SKU: {getSonicAmplifierTargetSkus(subtype).join(', ')})</span>
+                          <span className="text-[#23277A] font-bold">Terhubung Stok ABD</span>
+                        </label>
+                        {availableSonicABDList.length > 0 ? (
+                          <select
+                            value={noSeri}
+                            onChange={(e) => setNoSeri(e.target.value)}
+                            className="w-full bg-white border-2 border-[#23277A] rounded-xl p-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A]"
+                          >
+                            <option value="">-- Pilih No. Seri dari Stok ABD --</option>
+                            {availableSonicABDList.map((stk) => (
+                              <option key={stk.inventoryId} value={stk.noSeri}>
+                                No. Seri: {stk.noSeri} | SKU: {stk.sku} ({stk.tipeABD})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                            <p className="text-[10px] text-amber-800 font-semibold">
+                              ⚠️ Belum ada stok fisik ABD ({getSonicAmplifierTargetSkus(subtype).join(', ')}) di cabang [{activeBranchCode}]. Anda tetap dapat memasukkan No. Seri manual:
+                            </p>
+                            <input
+                              type="text"
+                              placeholder="Masukkan No. Seri manual..."
+                              value={noSeri}
+                              onChange={(e) => setNoSeri(e.target.value)}
+                              className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#23277A] outline-none"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
+                          No. Seri (Serial Number) <span className="text-[#23277A] font-medium">(Opsional / Jika ada)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Masukkan No. Seri spare part..."
+                          value={noSeri}
+                          onChange={(e) => setNoSeri(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-xl p-1.5 text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-[#23277A] outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ) : category === 'Paket Bundling ABD' ? (
                   <select
                     value={subtype}
@@ -704,6 +776,16 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                     <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-300 font-bold flex items-center gap-1">
                       🛠️ Jasa Service
                     </span>
+                  ) : (category === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtype)) ? (
+                    getBranchStock(subtype, category) > 0 ? (
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold font-mono">
+                        {getBranchStock(subtype, category)} Pcs (Stok ABD: {getSonicAmplifierTargetSkus(subtype).join(', ')})
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-300 font-bold font-mono flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 inline" /> 0 Pcs (Habis) (SKU ABD: {getSonicAmplifierTargetSkus(subtype).join(', ')})
+                      </span>
+                    )
                   ) : getBranchStock(subtype, category) > 0 ? (
                     <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold font-mono">
                       {getBranchStock(subtype, category)} Pcs
@@ -781,7 +863,14 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                   {cartItems.map((item) => (
                     <tr key={item.id}>
                       <td className="p-2.5 font-bold text-slate-800">
-                        {item.category} <span className="text-slate-500 font-normal">({item.subtype})</span>
+                        <div>
+                          {item.category} <span className="text-slate-500 font-normal">({item.subtype})</span>
+                        </div>
+                        {item.noSeri && (
+                          <div className="text-[10px] text-[#23277A] font-mono font-bold mt-0.5 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 inline-block">
+                            No. Seri: {item.noSeri}
+                          </div>
+                        )}
                       </td>
                       <td className="p-2.5 text-center font-bold">{item.qty}</td>
                       <td className="p-2.5 text-right">{formatRupiah(item.hargaJual)}</td>
@@ -1002,6 +1091,11 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
 
               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1.5 text-xs">
                 <div className="font-bold text-slate-800">{t.category} ({t.subtype})</div>
+                {(t.noSeri || t.items?.some(i => i.noSeri)) && (
+                  <div className="text-[10px] text-[#23277A] font-mono font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 inline-block">
+                    No. Seri: {t.noSeri || t.items?.find(i => i.noSeri)?.noSeri}
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-500">
                   <span>Jumlah Items:</span>
                   <span className="font-bold text-slate-800">{t.qty} item</span>
@@ -1075,6 +1169,11 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                       {t.subtype && (
                         <div className="text-[11px] text-slate-500 font-medium">
                           ({t.subtype})
+                        </div>
+                      )}
+                      {(t.noSeri || t.items?.some(i => i.noSeri)) && (
+                        <div className="text-[10px] text-[#23277A] font-mono font-bold mt-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 inline-block">
+                          No. Seri: {t.noSeri || t.items?.find(i => i.noSeri)?.noSeri}
                         </div>
                       )}
                     </td>

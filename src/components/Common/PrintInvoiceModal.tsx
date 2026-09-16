@@ -575,14 +575,37 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
                 {isAksesoris && aks && (
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="py-2.5 px-3.5 font-bold text-slate-900 text-xs sm:text-sm">
-                      {aks.category} {aks.subtype ? `(${aks.subtype})` : ''}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 text-xs">{aks.qty} Unit</td>
-                    <td className="py-2.5 px-3.5 text-right font-mono text-slate-800 font-bold text-xs">{formatRupiah(aks.hargaJual)}</td>
-                    <td className="py-2.5 px-3.5 text-right font-mono font-black text-[#23277A] text-xs sm:text-sm">{formatRupiah(aks.jumlah)}</td>
-                  </tr>
+                  aks.items && aks.items.length > 0 ? (
+                    aks.items.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-3.5 font-bold text-slate-900 text-xs sm:text-sm">
+                          <div>{item.category} ({item.subtype})</div>
+                          {item.noSeri && (
+                            <div className="text-[11px] text-[#23277A] font-mono mt-0.5 font-bold">
+                              No. Seri: <span className="font-bold">{item.noSeri}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 text-xs">{item.qty} Unit</td>
+                        <td className="py-2.5 px-3.5 text-right font-mono text-slate-800 font-bold text-xs">{formatRupiah(item.hargaJual)}</td>
+                        <td className="py-2.5 px-3.5 text-right font-mono font-black text-[#23277A] text-xs sm:text-sm">{formatRupiah(item.subtotal)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="py-2.5 px-3.5 font-bold text-slate-900 text-xs sm:text-sm">
+                        <div>{aks.category} {aks.subtype ? `(${aks.subtype})` : ''}</div>
+                        {aks.noSeri && (
+                          <div className="text-[11px] text-[#23277A] font-mono mt-0.5 font-bold">
+                            No. Seri: <span className="font-bold">{aks.noSeri}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 text-xs">{aks.qty} Unit</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono text-slate-800 font-bold text-xs">{formatRupiah(aks.hargaJual)}</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono font-black text-[#23277A] text-xs sm:text-sm">{formatRupiah(aks.jumlah)}</td>
+                    </tr>
+                  )
                 )}
 
                 {isJasa && jsa && (

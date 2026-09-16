@@ -1092,6 +1092,7 @@ export const POSPage: React.FC<POSPageProps> = ({
                       <option value="BSI 7368736893">BSI 7368736893</option>
                       <option value="BSI 7368737822">BSI 7368737822</option>
                       <option value="BSI 8888977822">BSI 8888977822</option>
+                      <option value="BSI 9009343910">BSI 9009343910</option>
                     </select>
                   </div>
                 )}

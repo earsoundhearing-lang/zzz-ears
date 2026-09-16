@@ -181,10 +181,12 @@ export function generateWhatsAppReceiptMessage({
       aks.items.forEach((it, idx) => {
         lines.push(`• ${idx + 1}. ${it.category}${it.subtype ? ` - ${it.subtype}` : ''}`);
         if (it.sku) lines.push(`   SKU: ${it.sku}`);
+        if (it.noSeri) lines.push(`   No. Seri: ${it.noSeri}`);
         lines.push(`   Qty: ${it.qty} Pcs | @${formatRupiah(it.hargaJual)} = ${formatRupiah(it.subtotal)}`);
       });
     } else {
       lines.push(`• ${aks.category} ${aks.subtype ? `(${aks.subtype})` : ''}`);
+      if (aks.noSeri) lines.push(`   No. Seri: ${aks.noSeri}`);
       lines.push(`   Qty: ${aks.qty} Pcs | Total: ${formatRupiah(aks.hargaJual)}`);
     }
 

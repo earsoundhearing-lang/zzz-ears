@@ -71,6 +71,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const aks = type === 'AKS' ? (transaction as AksesorisTransaction) : null;
   const [aksCategory, setAksCategory] = useState<AksesorisTypeCategory>(aks?.category || 'Baterai Alat Bantu Dengar');
   const [aksSubtype, setAksSubtype] = useState<string>(aks?.subtype || '');
+  const [aksNoSeri, setAksNoSeri] = useState<string>(aks?.noSeri || aks?.items?.find(i => i.noSeri)?.noSeri || '');
   const [aksQty, setAksQty] = useState<number>(aks?.qty || 1);
   const [aksHargaJual, setAksHargaJual] = useState<number>(aks?.hargaJual || 0);
   const [aksDiskon, setAksDiskon] = useState<number>(aks?.diskon || 0);
@@ -123,6 +124,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     if (type === 'AKS' && aks) {
       setAksCategory(aks.category);
       setAksSubtype(aks.subtype || '');
+      setAksNoSeri(aks.noSeri || aks.items?.find(i => i.noSeri)?.noSeri || '');
       setAksQty(aks.qty || 1);
       setAksHargaJual(aks.hargaJual || 0);
       setAksDiskon(aks.diskon || 0);
@@ -205,6 +207,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         namaCustomer: aksNamaCustomer,
         category: aksCategory,
         subtype: aksSubtype,
+        noSeri: aksNoSeri.trim() || undefined,
         qty: aksQty,
         hargaJual: aksHargaJual,
         diskon: aksDiskon,
@@ -364,6 +367,19 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                     className="w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"
                   />
                 </div>
+
+                {(aksCategory === 'Spare Part dan Service' || aksNoSeri) && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">No. Seri (Serial Number)</label>
+                    <input
+                      type="text"
+                      placeholder="Masukkan No. Seri..."
+                      value={aksNoSeri}
+                      onChange={(e) => setAksNoSeri(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl p-2 font-bold text-slate-800"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Quantity (Jumlah)</label>

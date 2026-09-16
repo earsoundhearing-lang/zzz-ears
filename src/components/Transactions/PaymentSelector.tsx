@@ -18,6 +18,7 @@ export const BSI_ACCOUNTS: BsiAccount[] = [
   'BSI 7368736893',
   'BSI 7368737822',
   'BSI 8888977822',
+  'BSI 9009343910',
 ];
 
 export const PaymentSelector: React.FC<PaymentSelectorProps> = ({ 

@@ -51,6 +51,7 @@ import { useFirestoreCollections } from './hooks/useFirestoreCollections';
 import { dbOps, inventoryDbOps } from './services/dbOperations';
 import { generateBundlingInventoryEntries } from './utils/bundlingInventory';
 import { findABDSku, findAksesorisSku, getAksesorisBySku } from './data/skuCatalog';
+import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus } from './utils/sonicAmplifierHelper';
 
 import { LoginPage } from './components/LoginPage';
 
@@ -248,12 +249,40 @@ export default function App() {
     
     dbOps.saveAksesoris(txWithBranch);
 
-    // Inventory Aksesoris (Earmould is custom lab fabrication, exempt from physical inventory stock)
+    // Inventory Aksesoris & ABD Spare Part replacement (Earmould is custom lab fabrication, exempt from physical inventory stock)
     if (tx.items && tx.items.length > 0) {
       tx.items.forEach((item, idx) => {
         if (item.category === 'Earmould' || (item.category === 'Spare Part dan Service' && item.subtype.toLowerCase().includes('jasa'))) {
           return;
         }
+        if (item.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(item.subtype)) {
+          const targetSkus = getSonicAmplifierTargetSkus(item.subtype);
+          let resolvedSku = targetSkus[0] || 'E2OBD';
+          if (item.noSeri && inventoryABD) {
+            const matchedInv = inventoryABD.find(inv => inv.noSeri === item.noSeri && (inv.branchCode || 'YM') === (txWithBranch.branchCode || 'YM'));
+            if (matchedInv?.sku) {
+              resolvedSku = matchedInv.sku;
+            }
+          }
+          const invABD: ABDInventoryEntry = {
+            id: `inv-abd-sp-${Date.now()}-${idx}`,
+            type: 'KELUAR_TERJUAL',
+            tanggal: tx.tanggal,
+            sumberTujuan: tx.namaCustomer || 'Pasien',
+            tipeABD: item.subtype,
+            model: 'Amplifier Spare Part',
+            sku: resolvedSku,
+            noSeri: item.noSeri || `SN-SP-${Date.now()}`,
+            keterangan: `Penggantian Spare Part/Amplifier (${item.subtype}) - Faktur: ${tx.nomorFaktur}`,
+            noInvoice: tx.nomorFaktur,
+            namaCustomer: tx.namaCustomer,
+            cabangTujuan: txWithBranch.branchCode,
+            branchCode: txWithBranch.branchCode || 'YM'
+          };
+          inventoryDbOps.saveInventoryABD(invABD);
+          return;
+        }
+
         const itemSku = item.sku || findAksesorisSku(item.subtype, item.category);
         const master = getAksesorisBySku(itemSku);
         const invAks: AksesorisInventoryEntry = {
@@ -273,23 +302,50 @@ export default function App() {
         inventoryDbOps.saveInventoryAksesoris(invAks);
       });
     } else if (tx.category !== 'Earmould' && !(tx.category === 'Spare Part dan Service' && tx.subtype.toLowerCase().includes('jasa'))) {
-      const itemSku = findAksesorisSku(tx.subtype, tx.category);
-      const master = getAksesorisBySku(itemSku);
-      const invAks: AksesorisInventoryEntry = {
-        id: `inv-aks-${Date.now()}`,
-        type: 'KELUAR_TERJUAL',
-        tanggal: tx.tanggal,
-        sumberTujuan: '',
-        kategori: master?.kategori || tx.category,
-        tipe: master?.nama || tx.subtype || '',
-        sku: master?.sku || (itemSku !== '-' ? itemSku : undefined),
-        qty: tx.qty,
-        noInvoice: tx.nomorFaktur,
-        namaCustomer: tx.namaCustomer,
-        cabangTujuan: txWithBranch.branchCode,
-        branchCode: txWithBranch.branchCode || 'YM'
-      };
-      inventoryDbOps.saveInventoryAksesoris(invAks);
+      if (tx.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(tx.subtype)) {
+        const targetSkus = getSonicAmplifierTargetSkus(tx.subtype);
+        let resolvedSku = targetSkus[0] || 'E2OBD';
+        if (tx.noSeri && inventoryABD) {
+          const matchedInv = inventoryABD.find(inv => inv.noSeri === tx.noSeri && (inv.branchCode || 'YM') === (txWithBranch.branchCode || 'YM'));
+          if (matchedInv?.sku) {
+            resolvedSku = matchedInv.sku;
+          }
+        }
+        const invABD: ABDInventoryEntry = {
+          id: `inv-abd-sp-${Date.now()}`,
+          type: 'KELUAR_TERJUAL',
+          tanggal: tx.tanggal,
+          sumberTujuan: tx.namaCustomer || 'Pasien',
+          tipeABD: tx.subtype,
+          model: 'Amplifier Spare Part',
+          sku: resolvedSku,
+          noSeri: tx.noSeri || `SN-SP-${Date.now()}`,
+          keterangan: `Penggantian Spare Part/Amplifier (${tx.subtype}) - Faktur: ${tx.nomorFaktur}`,
+          noInvoice: tx.nomorFaktur,
+          namaCustomer: tx.namaCustomer,
+          cabangTujuan: txWithBranch.branchCode,
+          branchCode: txWithBranch.branchCode || 'YM'
+        };
+        inventoryDbOps.saveInventoryABD(invABD);
+      } else {
+        const itemSku = findAksesorisSku(tx.subtype, tx.category);
+        const master = getAksesorisBySku(itemSku);
+        const invAks: AksesorisInventoryEntry = {
+          id: `inv-aks-${Date.now()}`,
+          type: 'KELUAR_TERJUAL',
+          tanggal: tx.tanggal,
+          sumberTujuan: '',
+          kategori: master?.kategori || tx.category,
+          tipe: master?.nama || tx.subtype || '',
+          sku: master?.sku || (itemSku !== '-' ? itemSku : undefined),
+          qty: tx.qty,
+          noInvoice: tx.nomorFaktur,
+          namaCustomer: tx.namaCustomer,
+          cabangTujuan: txWithBranch.branchCode,
+          branchCode: txWithBranch.branchCode || 'YM'
+        };
+        inventoryDbOps.saveInventoryAksesoris(invAks);
+      }
     }
 
 
@@ -337,6 +393,9 @@ export default function App() {
           inventoryAksesoris
             .filter((inv) => inv.noInvoice === tx.nomorFaktur)
             .forEach((inv) => inventoryDbOps.deleteInventoryAksesoris(inv.id));
+          inventoryABD
+            .filter((inv) => inv.noInvoice === tx.nomorFaktur)
+            .forEach((inv) => inventoryDbOps.deleteInventoryABD(inv.id));
         }
       }
     });
@@ -350,6 +409,9 @@ export default function App() {
       inventoryAksesoris
         .filter((inv) => inv.noInvoice === updatedTx.nomorFaktur)
         .forEach((inv) => inventoryDbOps.deleteInventoryAksesoris(inv.id));
+      inventoryABD
+        .filter((inv) => inv.noInvoice === updatedTx.nomorFaktur)
+        .forEach((inv) => inventoryDbOps.deleteInventoryABD(inv.id));
 
       const txWithBranch = {
         ...updatedTx,
@@ -361,6 +423,34 @@ export default function App() {
           if (item.category === 'Earmould' || (item.category === 'Spare Part dan Service' && item.subtype.toLowerCase().includes('jasa'))) {
             return;
           }
+          if (item.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(item.subtype)) {
+            const targetSkus = getSonicAmplifierTargetSkus(item.subtype);
+            let resolvedSku = targetSkus[0] || 'E2OBD';
+            if (item.noSeri && inventoryABD) {
+              const matchedInv = inventoryABD.find(inv => inv.noSeri === item.noSeri && (inv.branchCode || 'YM') === (txWithBranch.branchCode || 'YM'));
+              if (matchedInv?.sku) {
+                resolvedSku = matchedInv.sku;
+              }
+            }
+            const invABD: ABDInventoryEntry = {
+              id: `inv-abd-sp-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+              type: 'KELUAR_TERJUAL',
+              tanggal: updatedTx.tanggal,
+              sumberTujuan: updatedTx.namaCustomer || 'Pasien',
+              tipeABD: item.subtype,
+              model: 'Amplifier Spare Part',
+              sku: resolvedSku,
+              noSeri: item.noSeri || `SN-SP-${Date.now()}`,
+              keterangan: `Penggantian Spare Part/Amplifier (${item.subtype}) - Faktur: ${updatedTx.nomorFaktur}`,
+              noInvoice: updatedTx.nomorFaktur,
+              namaCustomer: updatedTx.namaCustomer,
+              cabangTujuan: txWithBranch.branchCode,
+              branchCode: txWithBranch.branchCode || 'YM'
+            };
+            inventoryDbOps.saveInventoryABD(invABD);
+            return;
+          }
+
           const itemSku = item.sku || findAksesorisSku(item.subtype, item.category);
           const master = getAksesorisBySku(itemSku);
           const invAks: AksesorisInventoryEntry = {
@@ -380,23 +470,50 @@ export default function App() {
           inventoryDbOps.saveInventoryAksesoris(invAks);
         });
       } else if (updatedTx.category !== 'Earmould' && !(updatedTx.category === 'Spare Part dan Service' && updatedTx.subtype.toLowerCase().includes('jasa'))) {
-        const itemSku = findAksesorisSku(updatedTx.subtype, updatedTx.category);
-        const master = getAksesorisBySku(itemSku);
-        const invAks: AksesorisInventoryEntry = {
-          id: `inv-aks-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          type: 'KELUAR_TERJUAL',
-          tanggal: updatedTx.tanggal,
-          sumberTujuan: updatedTx.namaCustomer || 'Pasien',
-          kategori: master?.kategori || updatedTx.category,
-          tipe: master?.nama || updatedTx.subtype || '',
-          sku: master?.sku || (itemSku !== '-' ? itemSku : undefined),
-          qty: updatedTx.qty,
-          noInvoice: updatedTx.nomorFaktur,
-          namaCustomer: updatedTx.namaCustomer,
-          cabangTujuan: txWithBranch.branchCode,
-          branchCode: txWithBranch.branchCode || 'YM'
-        };
-        inventoryDbOps.saveInventoryAksesoris(invAks);
+        if (updatedTx.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(updatedTx.subtype)) {
+          const targetSkus = getSonicAmplifierTargetSkus(updatedTx.subtype);
+          let resolvedSku = targetSkus[0] || 'E2OBD';
+          if (updatedTx.noSeri && inventoryABD) {
+            const matchedInv = inventoryABD.find(inv => inv.noSeri === updatedTx.noSeri && (inv.branchCode || 'YM') === (txWithBranch.branchCode || 'YM'));
+            if (matchedInv?.sku) {
+              resolvedSku = matchedInv.sku;
+            }
+          }
+          const invABD: ABDInventoryEntry = {
+            id: `inv-abd-sp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            type: 'KELUAR_TERJUAL',
+            tanggal: updatedTx.tanggal,
+            sumberTujuan: updatedTx.namaCustomer || 'Pasien',
+            tipeABD: updatedTx.subtype,
+            model: 'Amplifier Spare Part',
+            sku: resolvedSku,
+            noSeri: updatedTx.noSeri || `SN-SP-${Date.now()}`,
+            keterangan: `Penggantian Spare Part/Amplifier (${updatedTx.subtype}) - Faktur: ${updatedTx.nomorFaktur}`,
+            noInvoice: updatedTx.nomorFaktur,
+            namaCustomer: updatedTx.namaCustomer,
+            cabangTujuan: txWithBranch.branchCode,
+            branchCode: txWithBranch.branchCode || 'YM'
+          };
+          inventoryDbOps.saveInventoryABD(invABD);
+        } else {
+          const itemSku = findAksesorisSku(updatedTx.subtype, updatedTx.category);
+          const master = getAksesorisBySku(itemSku);
+          const invAks: AksesorisInventoryEntry = {
+            id: `inv-aks-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            type: 'KELUAR_TERJUAL',
+            tanggal: updatedTx.tanggal,
+            sumberTujuan: updatedTx.namaCustomer || 'Pasien',
+            kategori: master?.kategori || updatedTx.category,
+            tipe: master?.nama || updatedTx.subtype || '',
+            sku: master?.sku || (itemSku !== '-' ? itemSku : undefined),
+            qty: updatedTx.qty,
+            noInvoice: updatedTx.nomorFaktur,
+            namaCustomer: updatedTx.namaCustomer,
+            cabangTujuan: txWithBranch.branchCode,
+            branchCode: txWithBranch.branchCode || 'YM'
+          };
+          inventoryDbOps.saveInventoryAksesoris(invAks);
+        }
       }
     }
   };
