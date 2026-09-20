@@ -15,7 +15,7 @@ import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../util
 import { generateBranchInvoiceNumber, getBranchByCode } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
-import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, AKSESORIS_CATEGORY_LIST } from '../../data/priceCatalog';
+import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, AKSESORIS_CATEGORY_LIST, PAKET_BUNDLING } from '../../data/priceCatalog';
 import { findABDSku, findAksesorisSku } from '../../data/skuCatalog';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
 import { EditTransactionModal } from './EditTransactionModal';
@@ -288,6 +288,27 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
 
   const handleRemoveBonusItem = (id: string) => {
     setBonusItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleBundlingSelect = (paketName: string) => {
+    const pkg = PAKET_BUNDLING.find(p => p.nama === paketName);
+    if (!pkg) return;
+    const newItems: ABDBonusItem[] = pkg.items
+      .filter(it => it.hargaVal && it.hargaVal > 0)
+      .map(it => {
+        const sku = findAksesorisSku(it.namaItem, 'Aksesoris');
+        return {
+          id: `bonus-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          kategori: it.namaItem.toLowerCase().includes('batteray') ? 'Baterai ABD' : 'Aksesoris',
+          tipe: it.namaItem,
+          sku: sku !== '-' ? sku : undefined,
+          qty: 1,
+          harga: 0
+        };
+      });
+    if (newItems.length > 0) {
+      setBonusItems(prev => [...prev, ...newItems]);
+    }
   };
 
   // Earmould Integration

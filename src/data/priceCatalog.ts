@@ -87,8 +87,9 @@ export const ABD_PRICE_CATALOG: ABDPriceItem[] = [
   { id: '55', sku: 'TK4SD', tipe: 'Trek 40 SP DEMO', model: 'BTE', harga: 12000000 },
   { id: '56', sku: 'TK8UD', tipe: 'Trek 80 UP DEMO', model: 'BTE', harga: 25000000 },
   { id: '57', sku: 'TK4UD', tipe: 'Trek 40 UP DEMO', model: 'BTE', harga: 14000000 },
-  { id: '58', sku: 'HP3G4', tipe: 'AS HP3 G4', model: 'BTE', harga: 6000000 },
-  { id: '59', sku: 'RA1RD', tipe: 'Radiant 100 MNR TR DEMO', model: 'MNRT', harga: 42000000 },
+  { id: '58', sku: 'E2OBD', tipe: 'Enchant SE 20 BTE DEMO', model: 'BTE', harga: 9000000 },
+  { id: '59', sku: 'HP3G4', tipe: 'AS HP3 G4', model: 'BTE', harga: 6000000 },
+  { id: '60', sku: 'RA1RD', tipe: 'Radiant 100 MNR TR DEMO', model: 'MNRT', harga: 42000000 },
 ];
 
 export const PAKET_BUNDLING: BundlingPackage[] = [

@@ -8,7 +8,10 @@ import {
   KasKecilEntry,
   AppUser,
   BranchCode,
-  CRMNote
+  CRMNote,
+  ManualJournalEntry,
+  MaindealerB2BTransaction,
+  MaindealerSupplyTransaction
 } from '../types';
 import { 
   INITIAL_PATIENTS, 
@@ -33,11 +36,16 @@ const KEYS = {
   KAS_KECIL: 'earsound_kas_kecil_v1',
   EDIT_PIN: 'earsound_edit_pin_v1',
   CRM_NOTES: 'earsound_crm_notes_v1',
+  FINANCIAL_JOURNALS: 'earsound_fin_journals_v1',
+  DOCTOR_FEE_OVERRIDES: 'earsound_doc_fee_overrides_v1',
+  WAKPRO_OVERRIDES: 'earsound_wakpro_overrides_v1',
+  MAINDEALER_B2B: 'earsound_md_b2b_v1',
+  MAINDEALER_SUPPLY: 'earsound_md_supply_v1',
 };
 
 export const DEFAULT_EDIT_PIN = '1234';
 
-// Default Accounts for CEO, 3 Supervisors, Logistik, and 8 Branches
+// Default Accounts for CEO, Finance, Akuntan, 3 Supervisors, Logistik, and 8 Branches
 export const DEFAULT_USERS: AppUser[] = [
   {
     id: 'USR-CEO-001',
@@ -45,6 +53,28 @@ export const DEFAULT_USERS: AppUser[] = [
     password: 'ceo123',
     fullName: 'Bpk. CEO Earsound (Kantor Pusat)',
     role: 'CEO',
+    branchCode: 'HQ',
+    allowedBranches: ['ALL', 'YM', 'PB', 'JB', 'BJ', 'PK', 'LS', 'ST', 'BT', 'MD'],
+    isActive: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'USR-FIN-001',
+    username: 'finance_earsound',
+    password: 'finance123',
+    fullName: 'Staf Finance Earsound (Kantor Pusat)',
+    role: 'FINANCE',
+    branchCode: 'HQ',
+    allowedBranches: ['ALL', 'YM', 'PB', 'JB', 'BJ', 'PK', 'LS', 'ST', 'BT', 'MD'],
+    isActive: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'USR-AKT-001',
+    username: 'akuntan_earsound',
+    password: 'akuntan123',
+    fullName: 'Senior Akuntan Earsound',
+    role: 'AKUNTAN',
     branchCode: 'HQ',
     allowedBranches: ['ALL', 'YM', 'PB', 'JB', 'BJ', 'PK', 'LS', 'ST', 'BT', 'MD'],
     isActive: true,
@@ -331,9 +361,19 @@ export const canManageInventory = (user?: AppUser | null): boolean => {
   return user.role === 'CEO' || user.role === 'LOGISTIK';
 };
 
+export const canAccessFinancialStatement = (user?: AppUser | null): boolean => {
+  if (!user) return false;
+  return user.role === 'CEO' || user.role === 'FINANCE' || user.role === 'AKUNTAN';
+};
+
+export const canManageFinancialBooks = (user?: AppUser | null): boolean => {
+  if (!user) return false;
+  return user.role === 'FINANCE' || user.role === 'AKUNTAN';
+};
+
 export const getAllowedBranchesForUser = (user?: AppUser | null): BranchCode[] => {
   if (!user) return ['YM'];
-  if (user.role === 'CEO' || user.role === 'LOGISTIK') {
+  if (user.role === 'CEO' || user.role === 'LOGISTIK' || user.role === 'FINANCE' || user.role === 'AKUNTAN') {
     return ['ALL', 'YM', 'PB', 'JB', 'BJ', 'PK', 'LS', 'ST', 'BT', 'MD'];
   }
   if (user.role === 'SUPERVISOR') {
@@ -343,6 +383,20 @@ export const getAllowedBranchesForUser = (user?: AppUser | null): BranchCode[] =
   }
   return [user.branchCode || 'YM'];
 };
+
+// Financial Statements Storage Helpers
+export const getFinancialJournals = (): ManualJournalEntry[] => getFromStorage(KEYS.FINANCIAL_JOURNALS, []);
+export const saveFinancialJournals = (data: ManualJournalEntry[]) => setToStorage(KEYS.FINANCIAL_JOURNALS, data);
+
+export const getDoctorFeeOverrides = (): Record<string, { percentageOption?: 10 | 15; status?: 'BELUM_DIBAYAR' | 'SUDAH_DIBAYAR'; tanggalDibayar?: string; noBukti?: string; metodePembayaran?: any }> => 
+  getFromStorage(KEYS.DOCTOR_FEE_OVERRIDES, {});
+export const saveDoctorFeeOverrides = (data: Record<string, any>) => setToStorage(KEYS.DOCTOR_FEE_OVERRIDES, data);
+
+export const getMaindealerB2B = (): MaindealerB2BTransaction[] => getFromStorage(KEYS.MAINDEALER_B2B, []);
+export const saveMaindealerB2B = (data: MaindealerB2BTransaction[]) => setToStorage(KEYS.MAINDEALER_B2B, data);
+
+export const getMaindealerSupply = (): MaindealerSupplyTransaction[] => getFromStorage(KEYS.MAINDEALER_SUPPLY, []);
+export const saveMaindealerSupply = (data: MaindealerSupplyTransaction[]) => setToStorage(KEYS.MAINDEALER_SUPPLY, data);
 
 // Reset storage to default
 export const resetAllStorage = () => {

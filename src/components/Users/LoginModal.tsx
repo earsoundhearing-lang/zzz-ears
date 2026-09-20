@@ -21,8 +21,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [selectedUserId, setSelectedUserId] = useState(currentUser.id);
   const [enteredPassword, setEnteredPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [filterCategory, setFilterCategory] = useState<'ALL' | 'HQ_FINANCE' | 'BRANCHES'>('ALL');
 
   if (!isOpen) return null;
+
+  const filteredList = users.filter((u) => {
+    if (filterCategory === 'HQ_FINANCE') {
+      return u.role === 'CEO' || u.role === 'FINANCE' || u.role === 'AKUNTAN' || u.role === 'LOGISTIK' || u.branchCode === 'HQ';
+    }
+    if (filterCategory === 'BRANCHES') {
+      return u.role !== 'CEO' && u.role !== 'FINANCE' && u.role !== 'AKUNTAN' && u.branchCode !== 'HQ';
+    }
+    return true;
+  });
 
   const handleQuickSelect = (user: AppUser) => {
     setSelectedUserId(user.id);
@@ -82,14 +93,54 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
         )}
 
-        {/* Quick Select Grid for 8 Branches + CEO */}
-        <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            1. Pilih Akun Cabang / CEO:
-          </label>
+        {/* Quick Select Grid for Branches + Finance + CEO */}
+        <div className="space-y-2.5">
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              1. Pilih Akun User:
+            </label>
+            <span className="text-[10px] text-slate-400 italic">Password otomatis terisi</span>
+          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-100 rounded-2xl bg-slate-50">
-            {users.map((u) => {
+          {/* Category Filter Tabs */}
+          <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setFilterCategory('ALL')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
+                filterCategory === 'ALL'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Semua ({users.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterCategory('HQ_FINANCE')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
+                filterCategory === 'HQ_FINANCE'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50/50'
+              }`}
+            >
+              💼 Pusat & Finance (SAK)
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterCategory('BRANCHES')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
+                filterCategory === 'BRANCHES'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              🏬 Cabang
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto p-1 border border-slate-100 rounded-2xl bg-slate-50">
+            {filteredList.map((u) => {
               const isSelected = selectedUserId === u.id;
               return (
                 <button
@@ -105,12 +156,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <div className="flex justify-between items-center text-[10px] font-bold">
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold ${
                       u.role === 'CEO' 
-                        ? 'bg-amber-100 text-amber-800' 
-                        : u.role === 'LOGISTIK'
-                          ? 'bg-purple-100 text-purple-800'
-                          : u.role === 'SUPERVISOR'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-slate-100 text-slate-700'
+                        ? 'bg-purple-100 text-purple-800' 
+                        : u.role === 'FINANCE'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : u.role === 'AKUNTAN'
+                            ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                            : u.role === 'LOGISTIK'
+                              ? 'bg-amber-100 text-amber-800'
+                              : u.role === 'SUPERVISOR'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-100 text-slate-700'
                     }`}>
                       {u.role}
                     </span>
@@ -121,6 +176,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   {u.role === 'SUPERVISOR' && u.allowedBranches && (
                     <p className="text-[9px] text-blue-600 font-semibold truncate mt-0.5">
                       Cabang: {u.allowedBranches.join(', ')}
+                    </p>
+                  )}
+                  {(u.role === 'FINANCE' || u.role === 'AKUNTAN') && (
+                    <p className="text-[9px] text-emerald-600 font-bold truncate mt-0.5">
+                      ✨ Akses SAK Keuangan
                     </p>
                   )}
                 </button>

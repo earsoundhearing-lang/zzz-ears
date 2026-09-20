@@ -24,7 +24,8 @@ import {
   FileSpreadsheet,
   ShoppingCart,
   ReceiptText,
-  Sparkles
+  Sparkles,
+  Scale
 } from 'lucide-react';
 
 export type NavTab =
@@ -40,7 +41,8 @@ export type NavTab =
   | 'reparasi'
   | 'kas_kecil'
   | 'users'
-  | 'inventori';
+  | 'inventori'
+  | 'financial_statement';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -97,6 +99,10 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   const isCEO = currentUser.role === 'CEO' || currentUser.branchCode === 'HQ' || currentUser.branchCode === 'ALL';
+  const isFinance = currentUser.role === 'FINANCE';
+  const isAkuntan = currentUser.role === 'AKUNTAN';
+  const isFinanceOrAkuntan = isFinance || isAkuntan;
+  const canAccessFinancial = isCEO || isFinanceOrAkuntan;
   const isLogistik = currentUser.role === 'LOGISTIK';
   const isSupervisor = currentUser.role === 'SUPERVISOR';
   const allowedBranches = currentUser.allowedBranches && currentUser.allowedBranches.length > 0 
@@ -113,6 +119,17 @@ export const Header: React.FC<HeaderProps> = ({
         },
       ]
     : [
+        ...(canAccessFinancial ? [{
+          category: 'KEUANGAN & AKUNTANSI (SAK)',
+          items: [
+            { 
+              id: 'financial_statement' as NavTab, 
+              label: 'Financial Statement (SAK)', 
+              icon: <Scale className="w-4 h-4 text-emerald-400" />,
+              badge: isFinanceOrAkuntan ? 'SAK' : 'PANTAU'
+            },
+          ],
+        }] : []),
         {
           category: 'KASIR & POINT OF SALES',
           items: [
@@ -155,6 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getTabTitle = (tab: NavTab) => {
     switch (tab) {
+      case 'financial_statement': return 'Financial Statement & Laporan Keuangan Standar SAK';
       case 'pos': return 'Point of Sales (POS) - Kasir & Transaksi Cepat';
       case 'dashboard': return 'Dashboard Overview earsound';
       case 'crm': return 'CRM Pasien Global & Sistem Segmentasi RFM';
@@ -186,12 +204,12 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Branch Selector for CEO / Logistik / Supervisor or Branch badge for Staff */}
-        {(isCEO || isLogistik) ? (
+        {/* Branch Selector for CEO / Finance / Akuntan / Logistik / Supervisor or Branch badge for Staff */}
+        {(isCEO || isLogistik || isFinanceOrAkuntan) ? (
           <div className="pt-2">
             <label className="block text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-[#F5B438]" />
-              <span>{isCEO ? 'Filter Cabang (CEO):' : 'Akses Cabang (Logistik):'}</span>
+              <span>{isCEO ? 'Filter Cabang (CEO):' : isFinanceOrAkuntan ? 'Filter Cabang (Keuangan):' : 'Akses Cabang (Logistik):'}</span>
             </label>
             <select
               value={selectedBranch}

@@ -2,7 +2,7 @@ export type Gender = 'L' | 'P';
 
 export type BranchCode = 'YM' | 'PB' | 'JB' | 'BJ' | 'PK' | 'LS' | 'ST' | 'BT' | 'MD' | 'HQ' | 'ALL';
 
-export type UserRole = 'CEO' | 'SUPERVISOR' | 'LOGISTIK' | 'BRANCH_MANAGER' | 'STAFF';
+export type UserRole = 'CEO' | 'SUPERVISOR' | 'LOGISTIK' | 'BRANCH_MANAGER' | 'STAFF' | 'FINANCE' | 'AKUNTAN';
 
 export interface AppUser {
   id: string;
@@ -541,3 +541,140 @@ export interface POSTransactionReceipt {
   staffUser: string;
   catatan?: string;
 }
+
+// --- FINANCIAL STATEMENT & COA (CHART OF ACCOUNTS) TYPES ---
+
+export type COAAccountType = 
+  | 'Aset Lancar'
+  | 'Aset Tetap'
+  | 'Kontra Aset'
+  | 'Aset Tidak Berwujud'
+  | 'Kewajiban Lancar'
+  | 'Kewajiban Jangka Panjang'
+  | 'Ekuitas'
+  | 'Pendapatan'
+  | 'Beban Pokok'
+  | 'Beban Pokok Jasa'
+  | 'Beban Operasional'
+  | 'Beban Lain-lain';
+
+export interface COAAccount {
+  code: string; // e.g. "101", "401", "503"
+  name: string; // e.g. "Kas Bank BSI", "Pendapatan Jasa Pemeriksaan"
+  category: 'ASET' | 'KEWAJIBAN' | 'EKUITAS' | 'PENDAPATAN' | 'BEBAN';
+  accountType: COAAccountType;
+  normalBalance: 'DEBIT' | 'KREDIT';
+  description: string;
+  initialBalance?: number;
+  branchCode?: BranchCode; // If specific to a branch or company-wide
+}
+
+export interface JournalLineItem {
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+  notes?: string;
+}
+
+export interface ManualJournalEntry {
+  id: string;
+  nomorJurnal: string; // e.g. "JV-2026-0001"
+  tanggal: string; // YYYY-MM-DD
+  keterangan: string;
+  branchCode: BranchCode;
+  lines: JournalLineItem[];
+  totalDebit: number;
+  totalCredit: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface DoctorFeeRecord {
+  id: string;
+  sourceType: 'JASA_PERIKSA' | 'PENJUALAN_ABD';
+  sourceTransactionId: string;
+  nomorInvoiceOrKwitansi: string;
+  tanggal: string;
+  branchCode: BranchCode;
+  namaPasien: string;
+  namaDokter: string;
+  detailPemeriksaanOrItem: string;
+  // ABD percentage option (10% or 15%)
+  percentageOption?: 10 | 15;
+  nilaiTransaksi: number;
+  nominalFee: number;
+  status: 'BELUM_DIBAYAR' | 'SUDAH_DIBAYAR';
+  tanggalDibayar?: string;
+  metodePembayaran?: 'Kas Bank BSI' | 'Kas Bank BNI' | 'Kas Kecil' | 'Kas Besar';
+  noBuktiPembayaran?: string;
+  catatan?: string;
+}
+
+export interface WakproSharingRecord {
+  id: string;
+  sourceTransactionId: string;
+  nomorKwitansi: string;
+  tanggal: string;
+  branchCode: BranchCode;
+  namaPasien: string;
+  jenisPemeriksaan: string;
+  nominalBagiHasil: number;
+  isPaidToWakpro: boolean;
+  tanggalDibayar?: string;
+  isBeraJambiHospitalPaid?: boolean; // For BERA Jambi Rp 1.000.000 (after RS settles)
+  catatan?: string;
+}
+
+export type MaindealerSupplyScheme = 'KONSINYASI' | 'TERMIN_PEMBAYARAN';
+
+export interface MaindealerSupplyTransaction {
+  id: string;
+  nomorSuratJalan: string; // e.g. "SJ-MD-2026-001"
+  tanggal: string;
+  cabangTujuan: BranchCode;
+  skema: MaindealerSupplyScheme;
+  namaBarang: string;
+  sku?: string;
+  kategori: 'ABD' | 'Aksesoris' | 'Baterai' | 'Sparepart';
+  qty: number;
+  hargaModalMD: number;
+  hargaJualKeCabang: number;
+  totalNilai: number;
+  statusPembayaran: 'BELUM_LUNAS' | 'LUNAS' | 'KONSINYASI_TERPAJANG';
+  jatuhTempo?: string;
+  catatan?: string;
+  createdAt: string;
+}
+
+export type B2BCustomerType = 
+  | 'Ritel ABD Rekanan' 
+  | 'Dokter Spesialis' 
+  | 'Rumah Sakit' 
+  | 'Klinik Swasta' 
+  | 'Instansi Pemerintah' 
+  | 'Perorangan';
+
+export interface MaindealerB2BTransaction {
+  id: string;
+  nomorInvoice: string; // e.g. "INV-B2B-2026-001"
+  tanggal: string;
+  namaCustomer: string;
+  tipeCustomer: B2BCustomerType;
+  kontak: string;
+  alamat?: string;
+  kategoriProduk: 'Instrumen Audiologi' | 'Alat Bantu Dengar (Grosir)' | 'Aksesoris & Part' | 'Support Retail (HiPRO/NOAHLINK)';
+  itemDetail: string; // e.g. "Audiometer Resonance R27A", "Noahlink Wireless 2", "10 Unit Sonic Enchant 20"
+  qty: number;
+  hargaSatuan: number;
+  subtotal: number;
+  diskon?: number;
+  totalTagihan: number;
+  metodePembayaran: 'Transfer Bank BSI' | 'Transfer Bank BNI' | 'Termin 30 Hari' | 'Termin 60 Hari' | 'Cash';
+  status: 'LUNAS' | 'PIUTANG_BERJALAN' | 'JATUH_TEMPO';
+  jatuhTempo?: string;
+  tanggalPelunasan?: string;
+  catatan?: string;
+  createdAt: string;
+}
+

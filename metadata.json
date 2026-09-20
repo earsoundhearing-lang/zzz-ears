@@ -1,6 +1,6 @@
 {
   "name": "Pusat Alat Bantu Dengar Earsound",
-  "description": "Sistem Informasi Manajemen Transaksi, Pasien, Earmould, Reparasi & Kas Kecil Earsound",
+  "description": "Sistem Informasi Manajemen Transaksi, Pasien, Earmould, Reparasi, Kas Kecil & Financial Statement SAK Earsound",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

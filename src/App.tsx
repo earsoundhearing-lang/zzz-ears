@@ -19,6 +19,7 @@ import { ReparasiReportComponent } from './components/Reports/ReparasiReport';
 import { KasKecilReportComponent } from './components/Reports/KasKecilReport';
 import { UserManagementSection } from './components/Users/UserManagementSection';
 import { POSPage } from './components/POS/POSPage';
+import { FinancialDashboard } from './components/FinancialStatement/FinancialDashboard';
 
 import { PrintInvoiceModal } from './components/Common/PrintInvoiceModal';
 import { PinVerificationModal } from './components/Common/PinVerificationModal';
@@ -59,16 +60,21 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(getActiveUserSession);
   const [activeTab, setActiveTab] = useState<NavTab>(() => {
     const session = getActiveUserSession();
-    return session?.role === 'LOGISTIK' ? 'inventori' : 'dashboard';
+    if (session?.role === 'LOGISTIK') return 'inventori';
+    if (session?.role === 'FINANCE' || session?.role === 'AKUNTAN') return 'financial_statement';
+    return 'dashboard';
   });
 
   // User Auth & Branch Session
   const [selectedBranch, setSelectedBranch] = useState<BranchCode>(getSelectedBranchCode);
 
-  // Auto-redirect Logistik role to Inventory tab
+  // Auto-redirect Logistik / Finance / Akuntan roles to their primary workspace
   useEffect(() => {
     if (currentUser?.role === 'LOGISTIK' && activeTab !== 'inventori') {
       setActiveTab('inventori');
+    }
+    if ((currentUser?.role === 'FINANCE' || currentUser?.role === 'AKUNTAN') && activeTab === 'dashboard') {
+      setActiveTab('financial_statement');
     }
   }, [currentUser, activeTab]);
 
@@ -1097,6 +1103,17 @@ export default function App() {
               onSaveUser={handleSaveUser}
               onDeleteUser={handleDeleteUser}
               onSwitchUserSession={handleLoginUser}
+            />
+          )}
+
+          {activeTab === 'financial_statement' && (
+            <FinancialDashboard
+              currentUser={currentUser}
+              abdList={abd}
+              aksesorisList={aksesoris}
+              jasaPeriksaList={jasaPeriksa}
+              kasKecilList={kasKecil}
+              initialBranch={selectedBranch}
             />
           )}
         </main>
