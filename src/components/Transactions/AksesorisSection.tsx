@@ -28,6 +28,7 @@ import { EditTransactionModal } from './EditTransactionModal';
 import { ReportFilterToolbar } from '../Common/ReportFilterToolbar';
 import { SearchablePatientSelect } from '../Common/SearchablePatientSelect';
 import { exportAksesorisCSV } from '../../utils/exportHelpers';
+import { CloseTransactionConfirmModal } from './CloseTransactionConfirmModal';
 
 interface AksesorisSectionProps {
   transactions: AksesorisTransaction[];
@@ -91,6 +92,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
   onPrintInvoice,
 }) => {
   const [showForm, setShowForm] = useState(false);
+  const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -484,7 +486,13 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
           </button>
           <button
             id="btn-tambah-transaksi-aksesoris"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) {
+                setShowCloseConfirmModal(true);
+              } else {
+                setShowForm(true);
+              }
+            }}
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#23277A] hover:bg-[#1A1D60] text-white font-bold text-sm shadow-md transition-all whitespace-nowrap cursor-pointer"
           >
             <Plus className="w-5 h-5" />
@@ -492,6 +500,17 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal Before Closing */}
+      <CloseTransactionConfirmModal
+        isOpen={showCloseConfirmModal}
+        transactionTitle="Transaksi Pembelian Aksesoris ABD"
+        onContinue={() => setShowCloseConfirmModal(false)}
+        onCancelAndClose={() => {
+          setShowCloseConfirmModal(false);
+          setShowForm(false);
+        }}
+      />
 
       {/* Form Multi-Item Cart Panel */}
       {showForm && (
@@ -988,7 +1007,8 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              id="btn-batal-transaksi-aksesoris"
+              onClick={() => setShowCloseConfirmModal(true)}
               className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Batal

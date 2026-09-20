@@ -22,6 +22,7 @@ import { EditTransactionModal } from './EditTransactionModal';
 import { ReportFilterToolbar } from '../Common/ReportFilterToolbar';
 import { SearchablePatientSelect } from '../Common/SearchablePatientSelect';
 import { exportABDCSV } from '../../utils/exportHelpers';
+import { CloseTransactionConfirmModal } from './CloseTransactionConfirmModal';
 import { Volume2, Plus, Trash2, Search, Printer, ShieldCheck, Tag, PackageCheck, X, Edit3, DollarSign, Ear, AlertTriangle, CheckCircle2, AlertCircle, Boxes, Package, MessageSquare } from 'lucide-react';
 
 interface ABDSectionProps {
@@ -64,6 +65,7 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
   onPrintInvoice,
 }) => {
   const [showForm, setShowForm] = useState(false);
+  const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [showBranchStockModal, setShowBranchStockModal] = useState(false);
   const [branchStockActiveTab, setBranchStockActiveTab] = useState<'ABD' | 'AKSESORIS'>('ABD');
@@ -593,14 +595,31 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
           </button>
           <button
             id="btn-tambah-transaksi-abd"
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#23277A] hover:bg-[#181B57] text-white font-bold text-sm shadow-md transition-all whitespace-nowrap"
+            onClick={() => {
+              if (showForm) {
+                setShowCloseConfirmModal(true);
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#23277A] hover:bg-[#181B57] text-white font-bold text-sm shadow-md transition-all whitespace-nowrap cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             <span>{showForm ? 'Tutup Form' : '+ Transaksi Penjualan ABD'}</span>
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal Before Closing */}
+      <CloseTransactionConfirmModal
+        isOpen={showCloseConfirmModal}
+        transactionTitle="Transaksi Penjualan Alat Bantu Dengar (ABD)"
+        onContinue={() => setShowCloseConfirmModal(false)}
+        onCancelAndClose={() => {
+          setShowCloseConfirmModal(false);
+          setShowForm(false);
+        }}
+      />
 
       {/* Form Transaksi Penjualan ABD */}
       {showForm && (
@@ -1318,8 +1337,9 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              id="btn-batal-transaksi-abd"
+              onClick={() => setShowCloseConfirmModal(true)}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Batal
             </button>
