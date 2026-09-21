@@ -13,7 +13,6 @@ import {
   Wrench, 
   Wallet,
   LayoutDashboard,
-  Globe,
   Menu,
   X,
   Clock,
@@ -24,14 +23,12 @@ import {
   FileSpreadsheet,
   ShoppingCart,
   ReceiptText,
-  Sparkles,
-  Scale
+  Sparkles
 } from 'lucide-react';
 
 export type NavTab =
   | 'pos'
   | 'dashboard'
-  | 'crm'
   | 'pasien'
   | 'aksesoris'
   | 'jasa_periksa'
@@ -41,8 +38,7 @@ export type NavTab =
   | 'reparasi'
   | 'kas_kecil'
   | 'users'
-  | 'inventori'
-  | 'financial_statement';
+  | 'inventori';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -102,7 +98,6 @@ export const Header: React.FC<HeaderProps> = ({
   const isFinance = currentUser.role === 'FINANCE';
   const isAkuntan = currentUser.role === 'AKUNTAN';
   const isFinanceOrAkuntan = isFinance || isAkuntan;
-  const canAccessFinancial = isCEO || isFinanceOrAkuntan;
   const isLogistik = currentUser.role === 'LOGISTIK';
   const isSupervisor = currentUser.role === 'SUPERVISOR';
   const allowedBranches = currentUser.allowedBranches && currentUser.allowedBranches.length > 0 
@@ -119,17 +114,6 @@ export const Header: React.FC<HeaderProps> = ({
         },
       ]
     : [
-        ...(canAccessFinancial ? [{
-          category: 'KEUANGAN & AKUNTANSI (SAK)',
-          items: [
-            { 
-              id: 'financial_statement' as NavTab, 
-              label: 'Financial Statement (SAK)', 
-              icon: <Scale className="w-4 h-4 text-emerald-400" />,
-              badge: isFinanceOrAkuntan ? 'SAK' : 'PANTAU'
-            },
-          ],
-        }] : []),
         {
           category: 'KASIR & POINT OF SALES',
           items: [
@@ -139,7 +123,6 @@ export const Header: React.FC<HeaderProps> = ({
         {
           category: 'REGISTRASI & MEDIS',
           items: [
-            { id: 'crm' as NavTab, label: 'CRM Pasien Global', icon: <Globe className="w-4 h-4 text-[#F5B438]" /> },
             { id: 'dashboard', label: 'Dashboard Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
             { id: 'pasien', label: 'Data & History Pasien', icon: <Users className="w-4 h-4" />, badge: `${totalPatients}` },
             { id: 'jasa_periksa', label: 'Jasa Periksa', icon: <Stethoscope className="w-4 h-4" /> },
@@ -172,10 +155,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getTabTitle = (tab: NavTab) => {
     switch (tab) {
-      case 'financial_statement': return 'Financial Statement & Laporan Keuangan Standar SAK';
       case 'pos': return 'Point of Sales (POS) - Kasir & Transaksi Cepat';
       case 'dashboard': return 'Dashboard Overview earsound';
-      case 'crm': return 'CRM Pasien Global & Sistem Segmentasi RFM';
       case 'pasien': return 'Data Spesifik & Histori Transaksi Pasien';
       case 'aksesoris': return 'Penjualan Aksesoris';
       case 'jasa_periksa': return 'Jasa Periksa Examination';

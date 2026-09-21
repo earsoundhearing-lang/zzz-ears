@@ -7,7 +7,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { NavTab, Header } from './components/Header';
 import { DashboardOverview } from './components/DashboardOverview';
 import { PatientList } from './components/Patients/PatientList';
-import { GlobalPatientDirectory } from './components/Patients/GlobalPatientDirectory';
 import { PatientModal } from './components/Patients/PatientModal';
 import { AksesorisSection } from './components/Transactions/AksesorisSection';
 import { JasaPeriksaSection } from './components/Transactions/JasaPeriksaSection';
@@ -19,7 +18,6 @@ import { ReparasiReportComponent } from './components/Reports/ReparasiReport';
 import { KasKecilReportComponent } from './components/Reports/KasKecilReport';
 import { UserManagementSection } from './components/Users/UserManagementSection';
 import { POSPage } from './components/POS/POSPage';
-import { FinancialDashboard } from './components/FinancialStatement/FinancialDashboard';
 
 import { PrintInvoiceModal } from './components/Common/PrintInvoiceModal';
 import { PinVerificationModal } from './components/Common/PinVerificationModal';
@@ -61,20 +59,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>(() => {
     const session = getActiveUserSession();
     if (session?.role === 'LOGISTIK') return 'inventori';
-    if (session?.role === 'FINANCE' || session?.role === 'AKUNTAN') return 'financial_statement';
     return 'dashboard';
   });
 
   // User Auth & Branch Session
   const [selectedBranch, setSelectedBranch] = useState<BranchCode>(getSelectedBranchCode);
 
-  // Auto-redirect Logistik / Finance / Akuntan roles to their primary workspace
+  // Auto-redirect Logistik role to their primary workspace
   useEffect(() => {
     if (currentUser?.role === 'LOGISTIK' && activeTab !== 'inventori') {
       setActiveTab('inventori');
-    }
-    if ((currentUser?.role === 'FINANCE' || currentUser?.role === 'AKUNTAN') && activeTab === 'dashboard') {
-      setActiveTab('financial_statement');
     }
   }, [currentUser, activeTab]);
 
@@ -1080,22 +1074,6 @@ export default function App() {
             />
           )}
 
-          
-          {activeTab === 'crm' && (
-            <GlobalPatientDirectory
-              allPatients={patients}
-              allJasa={jasaPeriksa}
-              allABD={abd}
-              allAksesoris={aksesoris}
-              allEarmould={earmould}
-              allReparasi={reparasi}
-              currentUserBranch={currentUser?.branchCode}
-              crmNotes={crmNotes}
-              onAddCRMNote={dbOps.saveCRMNote}
-              onDeleteCRMNote={dbOps.deleteCRMNote}
-            />
-          )}
-
           {activeTab === 'users' && (
             <UserManagementSection
               users={users}
@@ -1103,17 +1081,6 @@ export default function App() {
               onSaveUser={handleSaveUser}
               onDeleteUser={handleDeleteUser}
               onSwitchUserSession={handleLoginUser}
-            />
-          )}
-
-          {activeTab === 'financial_statement' && (
-            <FinancialDashboard
-              currentUser={currentUser}
-              abdList={abd}
-              aksesorisList={aksesoris}
-              jasaPeriksaList={jasaPeriksa}
-              kasKecilList={kasKecil}
-              initialBranch={selectedBranch}
             />
           )}
         </main>

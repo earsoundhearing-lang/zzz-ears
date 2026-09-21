@@ -124,7 +124,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50/50'
               }`}
             >
-              💼 Pusat & Finance (SAK)
+              💼 Pusat & Finance
             </button>
             <button
               type="button"
@@ -180,7 +180,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   )}
                   {(u.role === 'FINANCE' || u.role === 'AKUNTAN') && (
                     <p className="text-[9px] text-emerald-600 font-bold truncate mt-0.5">
-                      ✨ Akses SAK Keuangan
+                      ✨ Akses Keuangan
                     </p>
                   )}
                 </button>
