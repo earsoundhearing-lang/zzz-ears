@@ -91,6 +91,8 @@ export const MASTER_HPP_AKSESORIS: Record<string, { nama: string; kategori: stri
   RET01: { nama: 'HA Retainer / Gantungan ABD', kategori: 'Aksesoris ABD', hpp: 40000 },
   FLT01: { nama: 'Filter', kategori: 'Aksesoris ABD', hpp: 20000 },
   BATCK: { nama: 'Baterai Checker', kategori: 'Aksesoris ABD', hpp: 40000 },
+  ELBOW: { nama: 'Elbow', kategori: 'Aksesoris ABD', hpp: 5000 },
+  HSG01: { nama: 'Housing', kategori: 'Aksesoris ABD', hpp: 100000 },
 
   A1TRV: { nama: 'Charger A1 Travel', kategori: 'Charger ABD', hpp: 3250000 },
   RDTRV: { nama: 'Charger RADIANT Travel', kategori: 'Charger ABD', hpp: 2750000 },
@@ -209,6 +211,8 @@ export function getHppForAksesoris(
       return 25000;
     }
     if (catUpper.includes('EARMOULD') || catUpper.includes('CANAL') || catUpper.includes('SHELL')) return 100000;
+    if (catUpper.includes('HOUSING') || searchTarget.toUpperCase().includes('HOUSING')) return 100000;
+    if (catUpper.includes('ELBOW') || searchTarget.toUpperCase().includes('ELBOW')) return 5000;
     if (catUpper.includes('AIDTIP') || catUpper.includes('SELANG')) return 5000;
     if (catUpper.includes('CHARGER')) return 2000000;
   }

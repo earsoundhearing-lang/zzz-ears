@@ -220,6 +220,8 @@ export function ManualOrderModal({
     { id: 'aks-8', gambar: '', nama: 'HA Retainer (Gantungan ABD)', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
     { id: 'aks-9', gambar: '', nama: 'Filter', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
     { id: 'aks-10', gambar: '', nama: 'Baterai Checker', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
+    { id: 'aks-11', gambar: '', nama: 'Elbow', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
+    { id: 'aks-12', gambar: '', nama: 'Housing', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
     { id: 'sp-3', gambar: '', nama: 'Mic Signia, AS, Rexton', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
     { id: 'sp-4', gambar: '', nama: 'Receiver Signia, AS, Rexton', kategori: 'Aksesoris', noSeri: '', satuan: 'Pcs', qty: 0 },
 

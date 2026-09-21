@@ -153,6 +153,8 @@ export const CATALOG_AKSESORIS_SERVICE: CatalogItem[] = [
   { sku: 'RET01', kategori: 'Aksesoris ABD', nama: 'HA Retainer / Gantungan ABD', harga: 100000 },
   { sku: 'FLT01', kategori: 'Aksesoris ABD', nama: 'Filter', harga: 40000 },
   { sku: 'BATCK', kategori: 'Aksesoris ABD', nama: 'Baterai Checker', harga: 150000 },
+  { sku: 'ELBOW', kategori: 'Aksesoris ABD', nama: 'Elbow', harga: 20000 },
+  { sku: 'HSG01', kategori: 'Aksesoris ABD', nama: 'Housing', harga: 300000 },
   
   // Charger ABD
   { sku: 'A1TRV', kategori: 'Charger ABD', nama: 'Charger A1 Travel', harga: 4500000 },

@@ -17,6 +17,7 @@ interface PatientModalProps {
 export const DEFAULT_RS_LAB_KLINIK_LIST = [
   'LAB MMC',
   'RS MADANI',
+  'RS MAHARANI',
   'RS MARTHA FRISKA',
   'RS MITRA MEDIKA',
   'RS THERESIA',

@@ -386,6 +386,8 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                     <option value="Blower">Blower</option>
                     <option value="Pouch">Pouch</option>
                     <option value="Baterai Checker">Baterai Checker</option>
+                    <option value="Elbow">Elbow</option>
+                    <option value="Housing">Housing</option>
                   </select>
                 </div>
 

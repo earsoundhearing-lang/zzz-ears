@@ -172,6 +172,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Farhat, Sp.THT (SU)',
   'dr. Tengku Siti Hajar Haryuna, Sp.THT (SU)',
   'dr. Silvia, SpTHT (SU)',
+  'dr. Sweet C.Marpaung Sp.THT-KL',
 
   // --- Wilayah AC (Aceh) ---
   'dr. Gilbran,Sp.THT (AC)',

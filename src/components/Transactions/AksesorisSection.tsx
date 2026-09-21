@@ -57,6 +57,8 @@ const CATEGORIES: AksesorisTypeCategory[] = [
   'Blower',
   'Pouch',
   'Baterai Checker',
+  'Elbow',
+  'Housing',
   'Paket Bundling ABD',
 ];
 
@@ -239,6 +241,12 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     } else if (newCat === 'Baterai Checker') {
       setSubtype('Baterai Checker');
       setHargaJual(80000);
+    } else if (newCat === 'Elbow') {
+      setSubtype('Elbow');
+      setHargaJual(20000);
+    } else if (newCat === 'Housing') {
+      setSubtype('Housing');
+      setHargaJual(300000);
     } else if (newCat === 'Paket Bundling ABD') {
       const defaultPkg = PAKET_BUNDLING[0];
       setSubtype(`Paket ${defaultPkg.nama}`);

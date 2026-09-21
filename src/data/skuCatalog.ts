@@ -103,7 +103,8 @@ export const MASTER_ABD_SKU_LIST: ABDSkuItem[] = [
 export const MASTER_AKSESORIS_SKU_LIST: AksesorisSkuItem[] = [
   // Gambar 2 items:
   { sku: 'R312V', nama: '312 RAYOVAC', kategori: 'Baterai ABD', aliases: ['312 Rayovac', 'Rayovac 312', 'Baterai 312 Rayovac', '312 RAYOVAC', 'R312V'], harga: 50000 },
-  { sku: 'ELBOW', nama: 'ELBOW', kategori: 'Aidtip & Earmould', aliases: ['Elbow', 'Elbow Connector', 'ELBOW'], harga: 20000 },
+  { sku: 'ELBOW', nama: 'Elbow', kategori: 'Aksesoris ABD', aliases: ['Elbow', 'Elbow Connector', 'ELBOW'], harga: 20000 },
+  { sku: 'HSG01', nama: 'Housing', kategori: 'Aksesoris ABD', aliases: ['Housing', 'HOUSING', 'Housing ABD', 'Housing Sonic', 'Housing Hearing Aid'], harga: 300000 },
   { sku: 'R2L10', nama: 'Speaker Unit 2L 100', kategori: 'Spare Part dan Service', aliases: ['Speaker Unit 2L 100', '2L 100 Speaker', 'Speaker 2L 100', 'Speaker Unit 2L', 'R2L10'], harga: 1000000 },
   { sku: 'R2R10', nama: 'Speaker Unit 2R 100', kategori: 'Spare Part dan Service', aliases: ['Speaker Unit 2R 100', '2R 100 Speaker', 'Speaker 2R 100', 'Speaker Unit 2R', 'R2R10'], harga: 1000000 },
   { sku: 'STCLP', nama: 'Stetoclip', kategori: 'Aksesoris ABD', aliases: ['Stetoclip', 'Stethoclip', 'STCLP'], harga: 150000 },
