@@ -169,6 +169,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [birthdayFilter, setBirthdayFilter] = useState<BirthdayFilter>('THIS_MONTH');
   const [prospectFilter, setProspectFilter] = useState<ProspectFilter>('ALL');
+  const [followUpFilter, setFollowUpFilter] = useState<'ALL' | 'NOT_FOLLOWED' | 'FOLLOWED'>('ALL');
 
   // Modal State for Note
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -415,78 +416,106 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
     });
   }, [branchFilteredProfiles, searchTerm]);
 
-  // Specific Category Filtering
+  // Specific Category Filtering & Follow-Up Status Filter
   const displayedProfiles = useMemo(() => {
+    let list = searchedProfiles;
+
     switch (activeCategory) {
       case 'BIRTHDAY':
-        return searchedProfiles.filter(item => {
+        list = searchedProfiles.filter(item => {
           if (birthdayFilter === 'TODAY') return item.isBirthdayToday;
           if (birthdayFilter === 'NEXT_7_DAYS') return item.isBirthdayToday || item.isBirthdayNext7Days;
           return item.isBirthdayThisMonth || item.isBirthdayNext7Days;
         }).sort((a, b) => a.daysUntilBirthday - b.daysUntilBirthday);
+        break;
 
       case 'ADAPTASI':
         // Pasien beli ABD 0-30 hari terakhir
-        return searchedProfiles.filter(item => 
+        list = searchedProfiles.filter(item => 
           item.daysSinceABDPurchase !== null && item.daysSinceABDPurchase <= 35
         ).sort((a, b) => (a.daysSinceABDPurchase || 0) - (b.daysSinceABDPurchase || 0));
+        break;
 
       case 'KONTROL_3_BULAN':
         // Pasien yang kunjungan terakhirnya > 90 hari (3 bulan)
-        return searchedProfiles.filter(item => 
+        list = searchedProfiles.filter(item => 
           item.daysSinceLastVisit >= 90 && item.latestActivity !== null
         ).sort((a, b) => b.daysSinceLastVisit - a.daysSinceLastVisit);
+        break;
 
       case 'LEAD_PERIKSA':
         // Pasien tes audiometri ambang dengar > 50 dB belum beli ABD (baik sudah coba demo ataupun belum)
-        return searchedProfiles.filter(item => {
+        list = searchedProfiles.filter(item => {
           if (!item.isAudiometryProspect) return false;
           if (prospectFilter === 'TRIALED') return item.hasFittingTrial;
           if (prospectFilter === 'NOT_TRIALED') return !item.hasFittingTrial;
           return true;
         }).sort((a, b) => a.daysSinceLastVisit - b.daysSinceLastVisit);
+        break;
 
       case 'BATERAI':
         // Pasien beli baterai 30-75 hari lalu (estimasi habis)
-        return searchedProfiles.filter(item => 
+        list = searchedProfiles.filter(item => 
           item.daysSinceBattery >= 30 && item.daysSinceBattery <= 90
         ).sort((a, b) => a.daysSinceBattery - b.daysSinceBattery);
+        break;
 
       case 'GARANSI_UPGRADE':
         // Menjelang habis garansi 11-12 bulan ATAU usia alat > 3 tahun
-        return searchedProfiles.filter(item => 
+        list = searchedProfiles.filter(item => 
           item.isWarrantyExpiringSoon || item.isRenewalCandidate
         ).sort((a, b) => (b.daysSinceABDPurchase || 0) - (a.daysSinceABDPurchase || 0));
+        break;
 
       case 'ALL':
       default:
-        return searchedProfiles;
+        list = searchedProfiles;
+        break;
     }
-  }, [searchedProfiles, activeCategory, birthdayFilter, prospectFilter]);
 
-  // Counts for KPIs
+    if (followUpFilter === 'NOT_FOLLOWED') {
+      return list.filter(item => item.notes.length === 0);
+    } else if (followUpFilter === 'FOLLOWED') {
+      return list.filter(item => item.notes.length > 0);
+    }
+
+    return list;
+  }, [searchedProfiles, activeCategory, birthdayFilter, prospectFilter, followUpFilter]);
+
+  // Counts for KPIs including Follow-Up Breakdowns
   const kpiCounts = useMemo(() => {
-    const birthdayTodayCount = branchFilteredProfiles.filter(i => i.isBirthdayToday).length;
-    const birthdayMonthCount = branchFilteredProfiles.filter(i => i.isBirthdayThisMonth).length;
-    const adaptasiCount = branchFilteredProfiles.filter(i => i.daysSinceABDPurchase !== null && i.daysSinceABDPurchase <= 35).length;
-    const kontrolCount = branchFilteredProfiles.filter(i => i.daysSinceLastVisit >= 90 && i.latestActivity !== null).length;
-    const leadsCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect).length;
-    const leadsTrialedCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect && i.hasFittingTrial).length;
-    const leadsNotTrialedCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect && !i.hasFittingTrial).length;
-    const batteryCount = branchFilteredProfiles.filter(i => i.daysSinceBattery >= 30 && i.daysSinceBattery <= 90).length;
-    const warrantyCount = branchFilteredProfiles.filter(i => i.isWarrantyExpiringSoon || i.isRenewalCandidate).length;
+    const birthdayTodayList = branchFilteredProfiles.filter(i => i.isBirthdayToday);
+    const birthdayMonthList = branchFilteredProfiles.filter(i => i.isBirthdayThisMonth);
+    const adaptasiList = branchFilteredProfiles.filter(i => i.daysSinceABDPurchase !== null && i.daysSinceABDPurchase <= 35);
+    const kontrolList = branchFilteredProfiles.filter(i => i.daysSinceLastVisit >= 90 && i.latestActivity !== null);
+    const leadsList = branchFilteredProfiles.filter(i => i.isAudiometryProspect);
+    const batteryList = branchFilteredProfiles.filter(i => i.daysSinceBattery >= 30 && i.daysSinceBattery <= 90);
+    const warrantyList = branchFilteredProfiles.filter(i => i.isWarrantyExpiringSoon || i.isRenewalCandidate);
 
     return {
-      birthdayTodayCount,
-      birthdayMonthCount,
-      adaptasiCount,
-      kontrolCount,
-      leadsCount,
-      leadsTrialedCount,
-      leadsNotTrialedCount,
-      batteryCount,
-      warrantyCount,
-      totalPatients: branchFilteredProfiles.length
+      birthdayTodayCount: birthdayTodayList.length,
+      birthdayMonthCount: birthdayMonthList.length,
+      birthdayMonthFollowed: birthdayMonthList.filter(i => i.notes.length > 0).length,
+
+      adaptasiCount: adaptasiList.length,
+      adaptasiFollowed: adaptasiList.filter(i => i.notes.length > 0).length,
+
+      kontrolCount: kontrolList.length,
+      kontrolFollowed: kontrolList.filter(i => i.notes.length > 0).length,
+
+      leadsCount: leadsList.length,
+      leadsFollowed: leadsList.filter(i => i.notes.length > 0).length,
+      leadsTrialedCount: leadsList.filter(i => i.hasFittingTrial).length,
+      leadsNotTrialedCount: leadsList.filter(i => !i.hasFittingTrial).length,
+
+      batteryCount: batteryList.length,
+      batteryFollowed: batteryList.filter(i => i.notes.length > 0).length,
+
+      warrantyCount: warrantyList.length,
+      warrantyFollowed: warrantyList.filter(i => i.notes.length > 0).length,
+
+      totalPatients: branchFilteredProfiles.length,
+      totalFollowed: branchFilteredProfiles.filter(i => i.notes.length > 0).length
     };
   }, [branchFilteredProfiles]);
 
@@ -665,6 +694,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Ulang Tahun Bulan Ini
             </div>
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.birthdayMonthFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.birthdayMonthCount - kpiCounts.birthdayMonthFollowed} Belum</span>
+            </div>
           </button>
 
           {/* Adaptasi Baru */}
@@ -684,6 +717,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Adaptasi ABD (0-30 Hari)
             </div>
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.adaptasiFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.adaptasiCount - kpiCounts.adaptasiFollowed} Belum</span>
+            </div>
           </button>
 
           {/* Kontrol 3 Bulan */}
@@ -702,6 +739,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-xl font-black text-white">{kpiCounts.kontrolCount}</div>
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Kontrol Rutin (&gt; 3 Bln)
+            </div>
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.kontrolFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.kontrolCount - kpiCounts.kontrolFollowed} Belum</span>
             </div>
           </button>
 
@@ -725,8 +766,9 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Prospek Tes (&gt; 50 dB)
             </div>
-            <div className="text-[10px] text-purple-200/70 mt-1">
-              Demo: {kpiCounts.leadsTrialedCount} | Blm: {kpiCounts.leadsNotTrialedCount}
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.leadsFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.leadsCount - kpiCounts.leadsFollowed} Belum</span>
             </div>
           </button>
 
@@ -747,6 +789,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Estimasi Baterai Habis
             </div>
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.batteryFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.batteryCount - kpiCounts.batteryFollowed} Belum</span>
+            </div>
           </button>
 
           {/* Garansi & Upgrade */}
@@ -765,6 +811,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             <div className="text-xl font-black text-white">{kpiCounts.warrantyCount}</div>
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
               Garansi / Upgrade (&gt; 3 Thn)
+            </div>
+            <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-bold">
+              <span className="text-emerald-300">✓ {kpiCounts.warrantyFollowed} Sdh</span>
+              <span className="text-rose-300">⏳ {kpiCounts.warrantyCount - kpiCounts.warrantyFollowed} Belum</span>
             </div>
           </button>
         </div>
@@ -987,6 +1037,59 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             </p>
           </div>
         )}
+
+        {/* Sub-Filter for Follow-Up Status (Supervision & Action) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+              Status Follow-Up Staf:
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setFollowUpFilter('ALL')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  followUpFilter === 'ALL'
+                    ? 'bg-indigo-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Semua Pasien
+              </button>
+              <button
+                type="button"
+                onClick={() => setFollowUpFilter('NOT_FOLLOWED')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                  followUpFilter === 'NOT_FOLLOWED'
+                    ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400/50'
+                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                }`}
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                🔴 Belum Follow-Up Staf
+              </button>
+              <button
+                type="button"
+                onClick={() => setFollowUpFilter('FOLLOWED')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                  followUpFilter === 'FOLLOWED'
+                    ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400/50'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                ✅ Sudah Follow-Up Staf
+              </button>
+            </div>
+          </div>
+
+          {isCEO && (
+            <div className="text-[11px] font-bold text-indigo-900 bg-indigo-50/90 px-3 py-1 rounded-lg border border-indigo-200/80 flex items-center gap-1.5">
+              <span>📊 Supervision CEO: <strong>{kpiCounts.totalFollowed}</strong> dari <strong>{kpiCounts.totalPatients}</strong> Pasien Telah Di-Follow Up Staf</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Patient Cards List */}
@@ -1011,6 +1114,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             {displayedProfiles.map((item) => {
               const p = item.patient;
               const hasValidPhone = Boolean(p.telepon && p.telepon.length >= 8);
+              const latestNote = item.notes[0];
 
               return (
                 <div
@@ -1022,6 +1126,29 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
                   }`}
                 >
                   <div>
+                    {/* Primary CEO Audit Follow-Up Status Badge */}
+                    {latestNote ? (
+                      <div className="bg-emerald-50 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between gap-1 mb-3 shadow-2xs">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span className="truncate">Sudah Di-Follow Up ({latestNote.author})</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-700 font-mono shrink-0">
+                          {latestNote.date.split('T')[0]}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="bg-rose-50 text-rose-900 border border-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between gap-1 mb-3 shadow-2xs animate-pulse">
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>BELUM DI-FOLLOW UP STAF</span>
+                        </div>
+                        <span className="text-[9px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md font-extrabold uppercase">
+                          Perlu Kontak
+                        </span>
+                      </div>
+                    )}
+
                     {/* Top Row: Branch & Context Badges */}
                     <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2.5">
                       <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[#23277A] font-bold text-[10px]">
