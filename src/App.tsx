@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { NavTab, Header } from './components/Header';
 import { DashboardOverview } from './components/DashboardOverview';
 import { PatientList } from './components/Patients/PatientList';
+import { CustomerCareDashboard } from './components/CRM/CustomerCareDashboard';
 import { PatientModal } from './components/Patients/PatientModal';
 import { AksesorisSection } from './components/Transactions/AksesorisSection';
 import { JasaPeriksaSection } from './components/Transactions/JasaPeriksaSection';
@@ -1071,6 +1072,22 @@ export default function App() {
               kasKecilEntries={visibleKasKecil}
               onAddEntry={handleAddKasKecil}
               onDeleteEntry={handleDeleteKasKecil}
+            />
+          )}
+
+          {activeTab === 'crm_care' && (
+            <CustomerCareDashboard
+              patients={patients}
+              abd={abd}
+              jasaPeriksa={jasaPeriksa}
+              aksesoris={aksesoris}
+              reparasi={reparasi}
+              crmNotes={crmNotes}
+              currentUserBranch={currentUser?.branchCode}
+              currentUserRole={currentUser?.role}
+              currentUserName={currentUser?.fullName || 'Staf Earsound'}
+              onSaveCRMNote={dbOps.saveCRMNote}
+              onDeleteCRMNote={dbOps.deleteCRMNote}
             />
           )}
 

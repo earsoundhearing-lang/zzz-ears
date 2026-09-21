@@ -23,12 +23,14 @@ import {
   FileSpreadsheet,
   ShoppingCart,
   ReceiptText,
-  Sparkles
+  Sparkles,
+  HeartHandshake
 } from 'lucide-react';
 
 export type NavTab =
   | 'pos'
   | 'dashboard'
+  | 'crm_care'
   | 'pasien'
   | 'aksesoris'
   | 'jasa_periksa'
@@ -124,6 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
           category: 'REGISTRASI & MEDIS',
           items: [
             { id: 'dashboard', label: 'Dashboard Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
+            { id: 'crm_care' as NavTab, label: 'CRM & Layanan Pasien', icon: <HeartHandshake className="w-4 h-4 text-emerald-400" /> },
             { id: 'pasien', label: 'Data & History Pasien', icon: <Users className="w-4 h-4" />, badge: `${totalPatients}` },
             { id: 'jasa_periksa', label: 'Jasa Periksa', icon: <Stethoscope className="w-4 h-4" /> },
           ],
@@ -157,6 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
     switch (tab) {
       case 'pos': return 'Point of Sales (POS) - Kasir & Transaksi Cepat';
       case 'dashboard': return 'Dashboard Overview earsound';
+      case 'crm_care': return 'CRM & Layanan Pasien (Customer Care & Follow-Up)';
       case 'pasien': return 'Data Spesifik & Histori Transaksi Pasien';
       case 'aksesoris': return 'Penjualan Aksesoris';
       case 'jasa_periksa': return 'Jasa Periksa Examination';
