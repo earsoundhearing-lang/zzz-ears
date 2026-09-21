@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Patient, 
   ABDTransaction, 
@@ -32,7 +32,8 @@ import {
   X,
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 
 interface CustomerCareDashboardProps {
@@ -44,7 +45,9 @@ interface CustomerCareDashboardProps {
   crmNotes: CRMNote[];
   currentUserBranch?: string;
   currentUserRole?: string;
+  currentUserAllowedBranches?: string[];
   currentUserName?: string;
+  activeAppBranch?: string;
   onSaveCRMNote: (note: CRMNote) => void;
   onDeleteCRMNote: (id: string) => void;
 }
@@ -59,6 +62,38 @@ type CareCategory =
   | 'ALL';
 
 type BirthdayFilter = 'TODAY' | 'NEXT_7_DAYS' | 'THIS_MONTH';
+type ProspectFilter = 'ALL' | 'TRIALED' | 'NOT_TRIALED';
+
+// Helper to extract numeric hearing threshold in dB from raw string, PTA, or audiogram
+const extractDb = (val?: string, pta?: number, earData?: any): number | null => {
+  if (typeof pta === 'number' && !isNaN(pta)) return Math.round(pta);
+  if (val) {
+    const match = val.replace(/,/g, '.').match(/[-+]?[0-9]*\.?[0-9]+/);
+    if (match) {
+      const parsed = parseFloat(match[0]);
+      if (!isNaN(parsed)) return Math.round(parsed);
+    }
+  }
+  if (earData?.ac) {
+    const freqs = [500, 1000, 2000, 4000];
+    const valid = freqs.map((f: number) => earData.ac[f]).filter((v: unknown): v is number => typeof v === 'number');
+    if (valid.length > 0) {
+      return Math.round(valid.reduce((a: number, b: number) => a + b, 0) / valid.length);
+    }
+    const allAc = Object.values(earData.ac).filter((v: unknown): v is number => typeof v === 'number');
+    if (allAc.length > 0) {
+      return Math.round(allAc.reduce((a: number, b: number) => a + b, 0) / allAc.length);
+    }
+  }
+  if (earData?.derajat) {
+    const der = String(earData.derajat).toLowerCase();
+    if (der.includes('sangat berat')) return 95;
+    if (der.includes('berat')) return 75;
+    if (der.includes('sedang-berat')) return 65;
+    if (der.includes('sedang')) return 55;
+  }
+  return null;
+};
 
 export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
   patients,
@@ -69,18 +104,71 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
   crmNotes,
   currentUserBranch = 'ALL',
   currentUserRole = 'STAFF',
+  currentUserAllowedBranches,
   currentUserName = 'Staf Earsound',
+  activeAppBranch,
   onSaveCRMNote,
   onDeleteCRMNote
 }) => {
+  const isCEO = currentUserRole === 'CEO';
+
+  // Compute strictly allowed branches for this user
+  const userAllowedBranches: string[] = useMemo(() => {
+    if (isCEO) {
+      return ['ALL', ...BRANCHES.map(b => b.code)];
+    }
+    // For non-CEO users (including SUPERVISOR, BRANCH_MANAGER, STAFF, etc.):
+    // Non-CEO is strictly forbidden from network-wide 'ALL' or 'HQ'
+    if (currentUserAllowedBranches && currentUserAllowedBranches.length > 0) {
+      const filtered = currentUserAllowedBranches.filter(b => b !== 'ALL' && b !== 'HQ');
+      if (filtered.length > 0) return filtered;
+    }
+    if (currentUserBranch && currentUserBranch !== 'ALL' && currentUserBranch !== 'HQ') {
+      return [currentUserBranch];
+    }
+    return ['YM'];
+  }, [isCEO, currentUserAllowedBranches, currentUserBranch]);
+
+  // Initial branch selection
+  const getInitialBranch = (): string => {
+    if (isCEO) {
+      if (activeAppBranch && (activeAppBranch === 'ALL' || userAllowedBranches.includes(activeAppBranch))) {
+        return activeAppBranch;
+      }
+      return 'ALL';
+    }
+    // For non-CEO, default to activeAppBranch if permitted, else first permitted branch
+    if (activeAppBranch && userAllowedBranches.includes(activeAppBranch)) {
+      return activeAppBranch;
+    }
+    return userAllowedBranches[0] || 'YM';
+  };
+
+  const [selectedBranch, setSelectedBranch] = useState<string>(getInitialBranch);
+
+  // Strictly enforce that non-CEO cannot hold an unauthorized branch or 'ALL'
+  useEffect(() => {
+    if (!isCEO) {
+      if (!userAllowedBranches.includes(selectedBranch)) {
+        setSelectedBranch(userAllowedBranches[0] || 'YM');
+      }
+    }
+  }, [isCEO, userAllowedBranches, selectedBranch]);
+
+  // Safe effective branch
+  const effectiveBranch = useMemo(() => {
+    if (isCEO) return selectedBranch;
+    return userAllowedBranches.includes(selectedBranch) ? selectedBranch : (userAllowedBranches[0] || 'YM');
+  }, [isCEO, selectedBranch, userAllowedBranches]);
+
+  const currentBranchInfo = useMemo(() => {
+    return BRANCHES.find(b => b.code === effectiveBranch) || null;
+  }, [effectiveBranch]);
+
   const [activeCategory, setActiveCategory] = useState<CareCategory>('BIRTHDAY');
-  const [selectedBranch, setSelectedBranch] = useState<string>(
-    currentUserRole === 'CEO' || currentUserRole === 'SUPERVISOR' || currentUserBranch === 'HQ' || currentUserBranch === 'ALL'
-      ? 'ALL'
-      : currentUserBranch
-  );
   const [searchTerm, setSearchTerm] = useState('');
   const [birthdayFilter, setBirthdayFilter] = useState<BirthdayFilter>('THIS_MONTH');
+  const [prospectFilter, setProspectFilter] = useState<ProspectFilter>('ALL');
 
   // Modal State for Note
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -204,8 +292,59 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
         daysSinceBattery = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
       }
 
-      // Has hearing test only, never bought ABD
-      const isTestOnlyLead = patientJasa.length > 0 && patientABD.length === 0;
+      // Check Audiometry records, hearing thresholds, and fitting trial status
+      const audiometriExams = patientJasa.filter(j => {
+        const isAudioType = j.jenisPemeriksaan?.some(jp => 
+          jp.toLowerCase().includes('audiometri') || 
+          jp.toLowerCase().includes('fft') || 
+          jp.toLowerCase().includes('play')
+        );
+        return isAudioType || Boolean(j.resultKananDb || j.resultKiriDb || j.audiogram);
+      });
+
+      const sortedAudiometri = [...audiometriExams].sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+      const latestAudiometri = sortedAudiometri[0] || null;
+
+      let audKananDb: number | null = null;
+      let audKiriDb: number | null = null;
+      let hasFittingTrial = false;
+      let trialedABDName: string | null = null;
+      let leadPotensi: string | null = null;
+      let leadHACNotes: string | null = null;
+
+      if (latestAudiometri) {
+        audKananDb = extractDb(
+          latestAudiometri.resultKananDb, 
+          latestAudiometri.audiogram?.kanan?.pta ?? latestAudiometri.audiogram?.kanan?.pta3, 
+          latestAudiometri.audiogram?.kanan
+        );
+        audKiriDb = extractDb(
+          latestAudiometri.resultKiriDb, 
+          latestAudiometri.audiogram?.kiri?.pta ?? latestAudiometri.audiogram?.kiri?.pta3, 
+          latestAudiometri.audiogram?.kiri
+        );
+      }
+
+      // Check fitting/trial and notes across all examinations
+      patientJasa.forEach(j => {
+        if (j.adaFittingABD || j.tipeABDFitting) {
+          hasFittingTrial = true;
+          if (!trialedABDName && j.tipeABDFitting) trialedABDName = j.tipeABDFitting;
+        }
+        if (!leadPotensi && j.potensiPembelian) leadPotensi = j.potensiPembelian;
+        if (!leadHACNotes && j.catatanHAC) leadHACNotes = j.catatanHAC;
+      });
+
+      // User Rule:
+      // "setiap pasien yang periksa audiometri, dan ambang dengar kanan dan kirinya lebih dari 50 dB tapi belum beli alat walaupun sudah dicobakan alat bantu dengar ataupun belum, masukan ke dalam prospek."
+      const hasPurchasedABD = patientABD.length > 0;
+      const hasAudiometryRecord = latestAudiometri !== null;
+
+      const isThresholdOver50 = (audKananDb !== null && audKiriDb !== null)
+        ? (audKananDb > 50 && audKiriDb > 50)
+        : ((audKananDb !== null && audKananDb > 50) || (audKiriDb !== null && audKiriDb > 50));
+
+      const isAudiometryProspect = !hasPurchasedABD && hasAudiometryRecord && isThresholdOver50;
 
       // Warranty & Renewal logic
       const isWarrantyExpiringSoon = daysSinceABDPurchase !== null && daysSinceABDPurchase >= 300 && daysSinceABDPurchase <= 365;
@@ -227,7 +366,14 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
         isBirthdayThisMonth,
         daysUntilBirthday,
         calculatedAge,
-        isTestOnlyLead,
+        isAudiometryProspect,
+        audKananDb,
+        audKiriDb,
+        hasFittingTrial,
+        trialedABDName,
+        leadPotensi,
+        leadHACNotes,
+        latestAudiometri,
         isWarrantyExpiringSoon,
         isRenewalCandidate,
         notes: patientNotes
@@ -235,17 +381,26 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
     });
   }, [patients, abd, jasaPeriksa, aksesoris, reparasi, crmNotes, today, todayMonth, todayDate]);
 
-  // Branch filter
+  // Branch filter with strict role-based isolation
   const branchFilteredProfiles = useMemo(() => {
-    if (selectedBranch === 'ALL') return patientCareProfiles;
+    if (effectiveBranch === 'ALL' && isCEO) return patientCareProfiles;
+
     return patientCareProfiles.filter(item => {
-      const pBranch = item.patient.branchCode;
-      if (pBranch === selectedBranch) return true;
-      // Also check latest activity branch if patient has no branchCode
-      if (item.latestABD?.branchCode === selectedBranch) return true;
+      // 1. Patient's primary registered branchCode
+      if (item.patient.branchCode && item.patient.branchCode === effectiveBranch) return true;
+
+      // 2. Patient's transactions and activities in this branch
+      if (item.latestABD?.branchCode === effectiveBranch) return true;
+      if (item.patientJasa.some(j => j.branchCode === effectiveBranch)) return true;
+      if (item.patientAksesoris.some(a => a.branchCode === effectiveBranch)) return true;
+      if (item.patientReparasi.some(r => r.branchCode === effectiveBranch)) return true;
+
+      // 3. Fallback: check patient ID prefix/code e.g. ES-JB-00001
+      if (!item.patient.branchCode && item.patient.id?.includes(`-${effectiveBranch}-`)) return true;
+
       return false;
     });
-  }, [patientCareProfiles, selectedBranch]);
+  }, [patientCareProfiles, effectiveBranch, isCEO]);
 
   // Search filter
   const searchedProfiles = useMemo(() => {
@@ -283,9 +438,13 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
         ).sort((a, b) => b.daysSinceLastVisit - a.daysSinceLastVisit);
 
       case 'LEAD_PERIKSA':
-        // Pasien yang hanya tes tapi belum beli ABD
-        return searchedProfiles.filter(item => item.isTestOnlyLead)
-          .sort((a, b) => a.daysSinceLastVisit - b.daysSinceLastVisit);
+        // Pasien tes audiometri ambang dengar > 50 dB belum beli ABD (baik sudah coba demo ataupun belum)
+        return searchedProfiles.filter(item => {
+          if (!item.isAudiometryProspect) return false;
+          if (prospectFilter === 'TRIALED') return item.hasFittingTrial;
+          if (prospectFilter === 'NOT_TRIALED') return !item.hasFittingTrial;
+          return true;
+        }).sort((a, b) => a.daysSinceLastVisit - b.daysSinceLastVisit);
 
       case 'BATERAI':
         // Pasien beli baterai 30-75 hari lalu (estimasi habis)
@@ -303,7 +462,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
       default:
         return searchedProfiles;
     }
-  }, [searchedProfiles, activeCategory, birthdayFilter]);
+  }, [searchedProfiles, activeCategory, birthdayFilter, prospectFilter]);
 
   // Counts for KPIs
   const kpiCounts = useMemo(() => {
@@ -311,7 +470,9 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
     const birthdayMonthCount = branchFilteredProfiles.filter(i => i.isBirthdayThisMonth).length;
     const adaptasiCount = branchFilteredProfiles.filter(i => i.daysSinceABDPurchase !== null && i.daysSinceABDPurchase <= 35).length;
     const kontrolCount = branchFilteredProfiles.filter(i => i.daysSinceLastVisit >= 90 && i.latestActivity !== null).length;
-    const leadsCount = branchFilteredProfiles.filter(i => i.isTestOnlyLead).length;
+    const leadsCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect).length;
+    const leadsTrialedCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect && i.hasFittingTrial).length;
+    const leadsNotTrialedCount = branchFilteredProfiles.filter(i => i.isAudiometryProspect && !i.hasFittingTrial).length;
     const batteryCount = branchFilteredProfiles.filter(i => i.daysSinceBattery >= 30 && i.daysSinceBattery <= 90).length;
     const warrantyCount = branchFilteredProfiles.filter(i => i.isWarrantyExpiringSoon || i.isRenewalCandidate).length;
 
@@ -321,6 +482,8 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
       adaptasiCount,
       kontrolCount,
       leadsCount,
+      leadsTrialedCount,
+      leadsNotTrialedCount,
       batteryCount,
       warrantyCount,
       totalPatients: branchFilteredProfiles.length
@@ -348,7 +511,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
   const openWAModal = (item: typeof patientCareProfiles[0], topic: CareCategory) => {
     const p = item.patient;
     const greeting = getGreeting(p);
-    const branchName = BRANCHES.find(b => b.code === (p.branchCode || currentUserBranch))?.name || 'Earsound';
+    const branchName = BRANCHES.find(b => b.code === (p.branchCode || effectiveBranch || currentUserBranch))?.name || 'Earsound';
 
     let message = '';
 
@@ -366,9 +529,17 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
         message = `Halo ${greeting},\n\nSemoga Bpk/Ibu dan keluarga senantiasa sehat selalu.\n\nMenurut catatan layanan klinik kami di *Earsound Hearing Care (${branchName})*, sudah 3 bulan sejak kunjungan pemeriksaan terakhir Bpk/Ibu.\n\nAgar performa pendengaran tetap prima dan alat bantu dengar tetap awet bebas dari sumbatan kotoran (wax), kami mengundang Bpk/Ibu untuk:\n✅ Pengecekan Fungsi & Pembersihan Mesin Alat (GRATIS)\n✅ Cuci & Sterilisasi Earmould/Aidtip (GRATIS)\n✅ Evaluasi Pendengaran Berkala\n\nKira-kira hari apa Bpk/Ibu ada waktu luang untuk mampir ke klinik? Kami akan siapkan jadwal temu terbaik. Terima kasih! 🙏`;
         break;
 
-      case 'LEAD_PERIKSA':
-        message = `Halo ${greeting},\n\nTerima kasih telah berkunjung dan melakukan pemeriksaan pendengaran di *Earsound Hearing Care (${branchName})*.\n\nKami ingin menanyakan apakah ada penjelasan hasil pemeriksaan atau konsultasi pendengaran yang ingin didiskusikan kembali bersama audiologis kami?\n\nSaat ini di Earsound tersedia program *Uji Coba (Free Demo Hearing Aid)* agar Bpk/Ibu dapat langsung merasakan perbedaan kejernihan mendengar percakapan keluarga di rumah. Jika berkenan mencoba, kami siap membantu tanpa dipungut biaya ya Bpk/Ibu. Terima kasih! 💙`;
+      case 'LEAD_PERIKSA': {
+        const thresholdText = (item.audKananDb !== null || item.audKiriDb !== null) 
+          ? ` (Kanan: ${item.audKananDb !== null ? item.audKananDb + ' dB' : '-'}, Kiri: ${item.audKiriDb !== null ? item.audKiriDb + ' dB' : '-'})`
+          : '';
+        if (item.hasFittingTrial) {
+          message = `Halo ${greeting},\n\nMenyapa dari klinik *Earsound Hearing Care (${branchName})*.\n\nKami ingin menanyakan kabar dan kenyamanan pendengaran Bpk/Ibu setelah sebelumnya mencoba demo alat bantu dengar *${item.trialedABDName || 'alat bantu dengar'}* di klinik kami.\n\nMengingat hasil tes audiometri menunjukkan ambang dengar Bpk/Ibu berada di atas 50 dB${thresholdText} yang tergolong indikasi kuat memerlukan amplifikasi suara, pemakaian alat bantu dengar akan sangat membantu menjaga kejelasan komunikasi sehari-hari bersama keluarga.\n\nApakah ada pertanyaan atau hal terkait kecocokan alat yang ingin didiskusikan kembali bersama tim kami? Kami siap mendampingi Bpk/Ibu dengan senang hati. Terima kasih! 🙏`;
+        } else {
+          message = `Halo ${greeting},\n\nTerima kasih telah berkunjung dan melakukan pemeriksaan audiometri di klinik *Earsound Hearing Care (${branchName})*.\n\nBerdasarkan hasil tes audiometri terakhir, ambang dengar Bpk/Ibu berada di atas 50 dB${thresholdText}. Pada rentang pendengaran tersebut, Bpk/Ibu sudah sangat disarankan menggunakan alat bantu dengar agar percakapan sehari-hari tidak terhambat dan saraf pendengaran tetap terstimulasi dengan baik.\n\nKami mengundang Bpk/Ibu untuk *Sesi Uji Coba Alat Bantu Dengar GRATIS (Free Demo Hearing Aid)* di klinik Earsound, agar Bpk/Ibu dapat langsung merasakan perbedaan mendengar suara keluarga secara jernih dan nyaman tanpa dipungut biaya.\n\nKira-kira hari apa Bpk/Ibu ada waktu luang untuk mencoba? Kami siap menyiapkan jadwal terbaik untuk Bpk/Ibu. Terima kasih! 💙`;
+        }
         break;
+      }
 
       case 'BATERAI':
         message = `Halo ${greeting},\n\nMenyapa dari *Earsound Hearing Care (${branchName})*.\n\nBerdasarkan perkiraan riwayat pemakaian rutin, persediaan baterai alat bantu dengar Bpk/Ibu mungkin sudah mulai menipis.\n\nApakah persediaan baterai saat ini masih mencukupi? Jika membutuhkan pengiriman stok baru atau ingin sekalian mampir ke klinik untuk cek alat, tim kami siap melayani dengan senang hati. Terima kasih! 🔋`;
@@ -534,7 +705,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             </div>
           </button>
 
-          {/* Leads Periksa */}
+          {/* Leads Periksa Audiometri > 50 dB */}
           <button
             type="button"
             onClick={() => setActiveCategory('LEAD_PERIKSA')}
@@ -544,12 +715,18 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
                 : 'bg-white/5 hover:bg-white/10 border-white/10'
             }`}
           >
-            <div className="text-purple-300 mb-1">
+            <div className="text-purple-300 mb-1 flex items-center justify-between">
               <Stethoscope className="w-4 h-4" />
+              <span className="text-[9px] px-1.5 py-0.2 bg-purple-400/30 text-purple-200 rounded-full font-bold">
+                &gt; 50 dB
+              </span>
             </div>
             <div className="text-xl font-black text-white">{kpiCounts.leadsCount}</div>
             <div className="text-[11px] font-semibold text-indigo-200 leading-tight mt-0.5">
-              Prospek Tes (Belum ABD)
+              Prospek Tes (&gt; 50 dB)
+            </div>
+            <div className="text-[10px] text-purple-200/70 mt-1">
+              Demo: {kpiCounts.leadsTrialedCount} | Blm: {kpiCounts.leadsNotTrialedCount}
             </div>
           </button>
 
@@ -656,7 +833,10 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
               }`}
             >
               <Stethoscope className="w-3.5 h-3.5 text-purple-600" />
-              <span>Prospek Tes</span>
+              <span>Prospek Tes (&gt; 50 dB)</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-purple-100 text-purple-800 font-bold">
+                {kpiCounts.leadsCount}
+              </span>
             </button>
 
             <button
@@ -759,6 +939,54 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
             </p>
           </div>
         )}
+
+        {/* Sub-Filter for Leads Audiometri > 50 dB Category */}
+        {activeCategory === 'LEAD_PERIKSA' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-600">Status Uji Coba Demo:</span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setProspectFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    prospectFilter === 'ALL'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  📋 Semua Prospek (&gt; 50 dB) ({kpiCounts.leadsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProspectFilter('TRIALED')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    prospectFilter === 'TRIALED'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  🎧 Sudah Dicobakan Alat ({kpiCounts.leadsTrialedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProspectFilter('NOT_TRIALED')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    prospectFilter === 'NOT_TRIALED'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  ⏳ Belum Dicobakan Alat ({kpiCounts.leadsNotTrialedCount})
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs text-purple-800 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 font-medium">
+              💡 Pasien tes audiometri dengan ambang dengar &gt; 50 dB (indikasi kuat ABD) yang belum membeli alat.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Patient Cards List */}
@@ -830,10 +1058,23 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
                       )}
 
                       {activeCategory === 'LEAD_PERIKSA' && (
-                        <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 font-bold text-[10px] flex items-center gap-1">
-                          <Stethoscope className="w-3 h-3 text-purple-600" />
-                          <span>Pernah Tes Belum ABD</span>
-                        </span>
+                        <>
+                          <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 font-bold text-[10px] flex items-center gap-1">
+                            <Stethoscope className="w-3 h-3 text-purple-600" />
+                            <span>Ambang &gt; 50 dB (Indikasi ABD)</span>
+                          </span>
+                          {item.hasFittingTrial ? (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[10px] flex items-center gap-1">
+                              <Volume2 className="w-3 h-3 text-emerald-600" />
+                              <span>Sudah Demo: {item.trialedABDName || 'Pernah Dicoba'}</span>
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px] flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Belum Dicobakan Alat</span>
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -892,6 +1133,46 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
                           {p.telepon || '-'}
                         </span>
                       </div>
+
+                      {/* Audiometri Info for LEAD_PERIKSA or patients with audiometry */}
+                      {(activeCategory === 'LEAD_PERIKSA' || item.isAudiometryProspect) && (
+                        <div className="pt-2 mt-1 border-t border-slate-200/80 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-purple-700 font-bold flex items-center gap-1.5 text-[11px]">
+                              <Stethoscope className="w-3.5 h-3.5 text-purple-600" /> Ambang Dengar:
+                            </span>
+                            <span className="font-bold text-[11px]">
+                              R: <span className="text-rose-600">{item.audKananDb !== null ? `${item.audKananDb} dB` : '-'}</span> | L: <span className="text-blue-600">{item.audKiriDb !== null ? `${item.audKiriDb} dB` : '-'}</span>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1.5 text-[11px]">
+                              <Volume2 className="w-3.5 h-3.5 text-indigo-500" /> Status Demo Alat:
+                            </span>
+                            <span className={`font-bold text-[11px] ${item.hasFittingTrial ? 'text-emerald-700' : 'text-amber-700'}`}>
+                              {item.hasFittingTrial ? `✅ ${item.trialedABDName || 'Pernah Dicoba'}` : '⏳ Belum Dicobakan'}
+                            </span>
+                          </div>
+
+                          {item.leadPotensi && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 flex items-center gap-1.5 text-[11px]">
+                                ⭐ Minat/Potensi:
+                              </span>
+                              <span className="font-bold text-slate-800 text-[11px]">
+                                {item.leadPotensi}
+                              </span>
+                            </div>
+                          )}
+
+                          {item.leadHACNotes && (
+                            <div className="text-[10px] text-slate-600 bg-purple-50/80 p-1.5 rounded-lg border border-purple-100">
+                              <span className="font-bold text-purple-900">Catatan Audiometris:</span> "{item.leadHACNotes}"
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Latest CRM Note if exists */}

@@ -22,6 +22,7 @@ import { POSPage } from './components/POS/POSPage';
 
 import { PrintInvoiceModal } from './components/Common/PrintInvoiceModal';
 import { PinVerificationModal } from './components/Common/PinVerificationModal';
+import { AppExitModal } from './components/Common/AppExitModal';
 
 import { 
   Patient, 
@@ -120,8 +121,81 @@ export default function App() {
     onConfirm: () => {}
   });
 
+  // Android / Browser Back Button Interceptor
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
 
+  useEffect(() => {
+    // Push an initial dummy history state so back button press can be captured
+    try {
+      window.history.pushState({ earsoundAppState: true }, '');
+    } catch (e) {
+      console.warn('History API state push warning:', e);
+    }
 
+    const handlePopState = () => {
+      // Re-push history state so app remains on top and subsequent back button presses are caught
+      try {
+        window.history.pushState({ earsoundAppState: true }, '');
+      } catch (e) {
+        console.warn('History API state push warning:', e);
+      }
+
+      // 1. If patient modal is open, close it
+      if (isPatientModalOpen) {
+        setIsPatientModalOpen(false);
+        setPatientToEdit(null);
+        return;
+      }
+
+      // 2. If print invoice modal is open, close it
+      if (printModalOpen) {
+        setPrintModalOpen(false);
+        return;
+      }
+
+      // 3. If PIN verification modal is open, close it
+      if (patientEditPinOpen) {
+        setPatientEditPinOpen(false);
+        setPendingPatientToEdit(null);
+        return;
+      }
+
+      if (pinDeletionConfig.isOpen) {
+        setPinDeletionConfig(prev => ({ ...prev, isOpen: false }));
+        return;
+      }
+
+      // 4. If user is on a sub-tab (not 'dashboard'), switch back to 'dashboard'
+      if (activeTab !== 'dashboard' && currentUser?.role !== 'LOGISTIK') {
+        setActiveTab('dashboard');
+        return;
+      }
+
+      // 5. If already at top level, prompt exit confirmation modal
+      setShowExitConfirmModal(true);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [
+    isPatientModalOpen,
+    printModalOpen,
+    patientEditPinOpen,
+    pinDeletionConfig.isOpen,
+    activeTab,
+    currentUser?.role
+  ]);
+
+  const handleConfirmExitApp = () => {
+    setShowExitConfirmModal(false);
+    try {
+      window.history.go(-2);
+    } catch (e) {
+      window.close();
+    }
+  };
 
   const handleSelectBranch = (branch: BranchCode) => {
     setSelectedBranch(branch);
@@ -1085,7 +1159,9 @@ export default function App() {
               crmNotes={crmNotes}
               currentUserBranch={currentUser?.branchCode}
               currentUserRole={currentUser?.role}
+              currentUserAllowedBranches={currentUser?.allowedBranches}
               currentUserName={currentUser?.fullName || 'Staf Earsound'}
+              activeAppBranch={selectedBranch}
               onSaveCRMNote={dbOps.saveCRMNote}
               onDeleteCRMNote={dbOps.deleteCRMNote}
             />
@@ -1153,6 +1229,13 @@ export default function App() {
           title="Verifikasi PIN Edit Pasien"
           subtitle="Masukkan PIN otorisasi untuk mengedit data profil pasien"
           actionText="Verifikasi & Edit Pasien"
+        />
+
+        {/* Android / Mobile Exit Confirmation Modal */}
+        <AppExitModal
+          isOpen={showExitConfirmModal}
+          onClose={() => setShowExitConfirmModal(false)}
+          onConfirmExit={handleConfirmExitApp}
         />
 
 
