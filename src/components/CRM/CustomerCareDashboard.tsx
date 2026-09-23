@@ -8,6 +8,7 @@ import {
   CRMNote 
 } from '../../types';
 import { BRANCHES } from '../../utils/branches';
+import { isInvalidBirthDate } from '../../utils/storage';
 import { 
   Cake, 
   HeartHandshake, 
@@ -244,7 +245,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
       let daysUntilBirthday = 999;
       let calculatedAge = p.usia || 0;
 
-      if (p.tanggalLahir) {
+      if (p.tanggalLahir && !isInvalidBirthDate(p.tanggalLahir)) {
         const parts = p.tanggalLahir.split('-');
         if (parts.length === 3) {
           const birthMonth = parseInt(parts[1], 10);
@@ -423,6 +424,7 @@ export const CustomerCareDashboard: React.FC<CustomerCareDashboardProps> = ({
     switch (activeCategory) {
       case 'BIRTHDAY':
         list = searchedProfiles.filter(item => {
+          if (!item.patient.tanggalLahir || isInvalidBirthDate(item.patient.tanggalLahir)) return false;
           if (birthdayFilter === 'TODAY') return item.isBirthdayToday;
           if (birthdayFilter === 'NEXT_7_DAYS') return item.isBirthdayToday || item.isBirthdayNext7Days;
           return item.isBirthdayThisMonth || item.isBirthdayNext7Days;

@@ -52,6 +52,7 @@ interface HeaderProps {
   onSelectBranch: (branch: BranchCode) => void;
   onOpenLoginModal: () => void;
   onAddPatient?: () => void;
+  onOpenSpreadsheetImporter?: () => void;
 }
 
 interface NavSection {
@@ -73,6 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectBranch,
   onOpenLoginModal,
   onAddPatient,
+  onOpenSpreadsheetImporter,
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
@@ -233,6 +235,19 @@ export const Header: React.FC<HeaderProps> = ({
               <Building2 className="w-4 h-4 text-[#F5B438] shrink-0" />
               <span className="truncate">Cabang: {currentUser.branchCode} ({BRANCHES.find(b=>b.code===currentUser.branchCode)?.name})</span>
             </span>
+          </div>
+        )}
+
+        {onOpenSpreadsheetImporter && isCEO && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onOpenSpreadsheetImporter}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+              <span>Import Google Sheets</span>
+            </button>
           </div>
         )}
       </div>

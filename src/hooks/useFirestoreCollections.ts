@@ -7,6 +7,8 @@ import {
   ABDInventoryEntry, AksesorisInventoryEntry, CRMNote
 } from '../types';
 
+import { sanitizePatientRecord } from '../utils/storage';
+
 export function useFirestoreCollections() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -43,7 +45,11 @@ export function useFirestoreCollections() {
       }, err => console.error("users sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'patients'), (snap) => {
-        if (isMounted) setPatients(snap.docs.map(d => d.data() as Patient));
+        if (isMounted) {
+          const rawPatients = snap.docs.map(d => d.data() as Patient);
+          const sanitized = rawPatients.map(p => sanitizePatientRecord(p));
+          setPatients(sanitized);
+        }
       }, err => console.error("patients sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'aksesoris'), (snap) => {

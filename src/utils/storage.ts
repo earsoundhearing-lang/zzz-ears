@@ -13,6 +13,8 @@ import {
   MaindealerB2BTransaction,
   MaindealerSupplyTransaction
 } from '../types';
+import { getTodayDateString, calculateAge } from './formatters';
+import { matchOfficialDoctorName } from '../data/doctors';
 import { 
   INITIAL_PATIENTS, 
   INITIAL_AKSESORIS, 
@@ -320,27 +322,240 @@ export const getSelectedBranchCode = (): BranchCode => getFromStorage(KEYS.SELEC
 export const saveSelectedBranchCode = (code: BranchCode) => setToStorage(KEYS.SELECTED_BRANCH, code);
 
 // Patients
-export const getPatients = (): Patient[] => getFromStorage(KEYS.PATIENTS, INITIAL_PATIENTS);
-export const savePatients = (data: Patient[]) => setToStorage(KEYS.PATIENTS, data);
+export const getPatients = (): Patient[] => {
+  const data = getFromStorage(KEYS.PATIENTS, INITIAL_PATIENTS);
+  return deduplicatePatientsList(data);
+};
+export const savePatients = (data: Patient[]) => {
+  const cleanData = deduplicatePatientsList(data);
+  setToStorage(KEYS.PATIENTS, cleanData);
+};
+
+// Helper to validate whether a birth date string is invalid or auto-filled
+export const isInvalidBirthDate = (dob: string | undefined | null): boolean => {
+  if (!dob || !dob.trim() || dob === '-' || dob === '0') return true;
+  const s = dob.trim();
+
+  // Any string containing current/future years or Excel/default base dates
+  if (
+    s.includes('2026') ||
+    s.includes('2025') ||
+    s.includes('2027') ||
+    s.includes('1899') ||
+    s.includes('1900') ||
+    s.includes('1970-01-01') ||
+    s.includes('1985-01-01')
+  ) {
+    return true;
+  }
+
+  // Find 4-digit year e.g. 1985 in "22/09/1985" or "1985-09-22" or "22 September 1985"
+  const yearMatch = s.match(/\b(19\d\d|20\d\d)\b/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1], 10);
+    // Valid birth year MUST be between 1910 and 2024
+    if (year < 1910 || year >= 2025) return true;
+  } else {
+    return true;
+  }
+
+  return false;
+};
+
+// Single-item patient sanitizer for dates, ages, doctor names, and referral categories
+export const sanitizePatientRecord = (rawP: Patient): Patient => {
+  if (!rawP) return rawP;
+  const p = { ...rawP };
+
+  // 1. Clean invalid or auto-filled birth dates
+  if (isInvalidBirthDate(p.tanggalLahir)) {
+    p.tanggalLahir = '';
+  }
+
+  // 2. Clean invalid age (e.g. 127 Thn or negative or > 110)
+  if (p.usia > 110 || p.usia < 0) {
+    if (p.tanggalLahir && !isInvalidBirthDate(p.tanggalLahir)) {
+      p.usia = calculateAge(p.tanggalLahir);
+    } else {
+      p.usia = 0;
+    }
+  }
+
+  // 3. Normalize Doctor referrals & Ensure Referal badge is 'Dokter Umum dan Dokter Spesialis' if doctor exists
+  if (p.namaDokter && p.namaDokter.trim()) {
+    const matchedDoctor = matchOfficialDoctorName(p.namaDokter);
+    if (matchedDoctor) {
+      p.namaDokter = matchedDoctor;
+    }
+    p.referal = 'Dokter Umum dan Dokter Spesialis';
+    p.referalCategory = 'Dokter & Faskes';
+  } else if (p.referal) {
+    const refLower = p.referal.toLowerCase();
+    if (
+      refLower.includes('dr.') ||
+      refLower.includes('dr ') ||
+      refLower.includes('dr:') ||
+      refLower.includes('sweet') ||
+      refLower.includes('maesarah') ||
+      refLower.includes('maesyara') ||
+      refLower.includes('carlo') ||
+      refLower.includes('hotmaida') ||
+      refLower.includes('ralph') ||
+      refLower.includes('lukas') ||
+      refLower.includes('deddy') ||
+      refLower.includes('eko')
+    ) {
+      const docFromRef = matchOfficialDoctorName(p.referal);
+      if (docFromRef) {
+        p.namaDokter = docFromRef;
+        p.referal = 'Dokter Umum dan Dokter Spesialis';
+        p.referalCategory = 'Dokter & Faskes';
+      }
+    }
+  }
+
+  return p;
+};
+
+// Helper to sanitize duplicate patient records by name & clean invalid birthdates/ages
+const deduplicatePatientsList = (list: Patient[]): Patient[] => {
+  if (!Array.isArray(list) || list.length === 0) return list;
+
+  const nameMap = new Map<string, Patient>();
+  const idRemap = new Map<string, string>(); // duplicateId -> primaryId
+  const uniqueList: Patient[] = [];
+  let modified = false;
+
+  for (const rawP of list) {
+    if (!rawP.nama || !rawP.nama.trim()) continue;
+
+    const p = sanitizePatientRecord(rawP);
+    if (
+      p.tanggalLahir !== rawP.tanggalLahir ||
+      p.usia !== rawP.usia ||
+      p.namaDokter !== rawP.namaDokter ||
+      p.referal !== rawP.referal
+    ) {
+      modified = true;
+    }
+
+    const normName = p.nama.trim().toLowerCase();
+
+    if (nameMap.has(normName)) {
+      // Duplicate patient found!
+      const primary = nameMap.get(normName)!;
+      if (p.id !== primary.id) {
+        idRemap.set(p.id, primary.id);
+        modified = true;
+      }
+    } else {
+      nameMap.set(normName, p);
+      uniqueList.push(p);
+    }
+  }
+
+  if (modified) {
+    setToStorage(KEYS.PATIENTS, uniqueList);
+
+    if (idRemap.size > 0) {
+      const remapList = (storageKey: string) => {
+        const items = getFromStorage<any[]>(storageKey, []);
+        if (!Array.isArray(items) || items.length === 0) return;
+        let itemsModified = false;
+        const updated = items.map(item => {
+          if (item.idPelanggan && idRemap.has(item.idPelanggan)) {
+            itemsModified = true;
+            return { ...item, idPelanggan: idRemap.get(item.idPelanggan) };
+          }
+          return item;
+        });
+        if (itemsModified) {
+          setToStorage(storageKey, updated);
+        }
+      };
+
+      remapList(KEYS.AKSESORIS);
+      remapList(KEYS.JASA_PERIKSA);
+      remapList(KEYS.ABD);
+      remapList(KEYS.EARMOULD);
+      remapList(KEYS.REPARASI);
+    }
+  }
+
+  return uniqueList;
+};
+
+// Helper to sanitize imported transactions that incorrectly got defaulted to today's date
+const sanitizeImportedList = <T extends { id: string; tanggal?: string; nomorKwitansi?: string; nomorFaktur?: string; [key: string]: any }>(
+  list: T[],
+  storageKey: string
+): T[] => {
+  if (!Array.isArray(list) || list.length === 0) return list;
+
+  const todayStr = getTodayDateString();
+  let modified = false;
+
+  const cleaned = list.map((item) => {
+    const isImported = (item.id && String(item.id).includes('-IMP-')) || 
+                       (item.nomorKwitansi && String(item.nomorKwitansi).includes('-IMP-')) || 
+                       (item.nomorFaktur && String(item.nomorFaktur).includes('-IMP-'));
+    
+    if (isImported) {
+      const cleanDate = item.tanggal ? String(item.tanggal).split('T')[0].trim() : '';
+      
+      // If an imported transaction was saved with today's date (2026-09-22) or missing date
+      if (cleanDate === todayStr || cleanDate === '2026-09-22' || !cleanDate) {
+        modified = true;
+        // Shift its date back to historical January 2, 2026 (the spreadsheet import batch date)
+        return {
+          ...item,
+          tanggal: '2026-01-02'
+        };
+      }
+    }
+    return item;
+  });
+
+  if (modified) {
+    setToStorage(storageKey, cleaned);
+  }
+
+  return cleaned;
+};
 
 // Aksesoris
-export const getAksesoris = (): AksesorisTransaction[] => getFromStorage(KEYS.AKSESORIS, INITIAL_AKSESORIS);
+export const getAksesoris = (): AksesorisTransaction[] => {
+  const data = getFromStorage(KEYS.AKSESORIS, INITIAL_AKSESORIS);
+  return sanitizeImportedList(data, KEYS.AKSESORIS);
+};
 export const saveAksesoris = (data: AksesorisTransaction[]) => setToStorage(KEYS.AKSESORIS, data);
 
 // Jasa Periksa
-export const getJasaPeriksa = (): JasaPeriksaTransaction[] => getFromStorage(KEYS.JASA_PERIKSA, INITIAL_JASA_PERIKSA);
+export const getJasaPeriksa = (): JasaPeriksaTransaction[] => {
+  const data = getFromStorage(KEYS.JASA_PERIKSA, INITIAL_JASA_PERIKSA);
+  return sanitizeImportedList(data, KEYS.JASA_PERIKSA);
+};
 export const saveJasaPeriksa = (data: JasaPeriksaTransaction[]) => setToStorage(KEYS.JASA_PERIKSA, data);
 
 // ABD
-export const getABD = (): ABDTransaction[] => getFromStorage(KEYS.ABD, INITIAL_ABD);
+export const getABD = (): ABDTransaction[] => {
+  const data = getFromStorage(KEYS.ABD, INITIAL_ABD);
+  return sanitizeImportedList(data, KEYS.ABD);
+};
 export const saveABD = (data: ABDTransaction[]) => setToStorage(KEYS.ABD, data);
 
 // Earmould
-export const getEarmould = (): EarmouldReport[] => getFromStorage(KEYS.EARMOULD, INITIAL_EARMOULD);
+export const getEarmould = (): EarmouldReport[] => {
+  const data = getFromStorage(KEYS.EARMOULD, INITIAL_EARMOULD);
+  return sanitizeImportedList(data, KEYS.EARMOULD);
+};
 export const saveEarmould = (data: EarmouldReport[]) => setToStorage(KEYS.EARMOULD, data);
 
 // Reparasi
-export const getReparasi = (): ReparasiService[] => getFromStorage(KEYS.REPARASI, INITIAL_REPARASI);
+export const getReparasi = (): ReparasiService[] => {
+  const data = getFromStorage(KEYS.REPARASI, INITIAL_REPARASI);
+  return sanitizeImportedList(data, KEYS.REPARASI);
+};
 export const saveReparasi = (data: ReparasiService[]) => setToStorage(KEYS.REPARASI, data);
 
 // Kas Kecil

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { BRANCHES } from '../../utils/branches';
-import { formatRupiah } from '../../utils/formatters';
+import { formatRupiah, parseDateParts, isSalesTransaction } from '../../utils/formatters';
 import { 
   Target, 
   TrendingUp, 
@@ -91,14 +91,18 @@ export const BranchTargetAchievementSection: React.FC<BranchTargetAchievementSec
     const filterTx = (txList: any[]) => {
       return txList.filter((item) => {
         if (!item?.tanggal) return false;
+        if (!isSalesTransaction(item)) return false;
         if (isSingleBranch && item.branchCode !== branchCode) return false;
 
-        const d = new Date(item.tanggal);
-        // Check year 2026 or all if dates fall in this demo range
+        const parsed = parseDateParts(String(item.tanggal));
+        if (!parsed) return false;
+
+        const { year, month } = parsed;
+
         if (monthIdx === 'FULL_YEAR') {
-          return true;
+          return year === currentYear;
         }
-        return d.getMonth() === monthIdx;
+        return month === monthIdx && year === currentYear;
       });
     };
 

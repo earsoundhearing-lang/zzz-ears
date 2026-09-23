@@ -15,7 +15,7 @@ import {
   BranchCode
 } from '../types';
 import { BRANCHES } from '../utils/branches';
-import { formatRupiah, formatIndoDate } from '../utils/formatters';
+import { formatRupiah, formatIndoDate, getTodayDateString, parseDateParts, isSalesTransaction } from '../utils/formatters';
 import { 
   Users, 
   ShoppingBag, 
@@ -112,7 +112,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const safeEarmould = earmould || [];
   const safeReparasi = reparasi || [];
 
-  const [dateFilter, setDateFilter] = useState<'all'|'today'|'week'|'month'|'custom'>('all');
+  const [dateFilter, setDateFilter] = useState<'all'|'today'|'week'|'month'|'custom'>('month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -121,42 +121,48 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     if (dateFilter === 'all') return true;
     if (!dateStr) return false;
     
-    const targetDate = new Date(dateStr);
-    targetDate.setHours(0, 0, 0, 0);
+    const parsed = parseDateParts(dateStr);
+    if (!parsed) return false;
+
+    const { year, month, day } = parsed;
+    const targetDate = new Date(year, month, day);
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
 
     if (dateFilter === 'today') {
-      return targetDate.getTime() === today.getTime();
+      const todayStr = getTodayDateString();
+      const cleanDateStr = String(dateStr).split('T')[0].trim();
+      return cleanDateStr === todayStr;
     }
     
     if (dateFilter === 'week') {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 7);
-      return targetDate >= weekAgo && targetDate <= today;
+      const todayZero = new Date(currentYear, currentMonth, today.getDate());
+      const weekAgo = new Date(todayZero);
+      weekAgo.setDate(todayZero.getDate() - 7);
+      return targetDate >= weekAgo && targetDate <= todayZero;
     }
     
     if (dateFilter === 'month') {
-      const monthAgo = new Date(today);
-      monthAgo.setMonth(today.getMonth() - 1);
-      return targetDate >= monthAgo && targetDate <= today;
+      return year === currentYear && month === currentMonth;
     }
     
     if (dateFilter === 'custom') {
       if (!customStartDate || !customEndDate) return true;
-      const start = new Date(customStartDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(customEndDate);
-      end.setHours(23, 59, 59, 999);
+      const startParts = parseDateParts(customStartDate);
+      const endParts = parseDateParts(customEndDate);
+      if (!startParts || !endParts) return true;
+      const start = new Date(startParts.year, startParts.month, startParts.day, 0, 0, 0);
+      const end = new Date(endParts.year, endParts.month, endParts.day, 23, 59, 59);
       return targetDate >= start && targetDate <= end;
     }
     
     return true;
   };
 
-  const filteredAksesoris = useMemo(() => safeAksesoris.filter(i => isDateInRange(i.tanggal)), [safeAksesoris, dateFilter, customStartDate, customEndDate]);
-  const filteredJasaPeriksa = useMemo(() => safeJasaPeriksa.filter(i => isDateInRange(i.tanggal)), [safeJasaPeriksa, dateFilter, customStartDate, customEndDate]);
-  const filteredABD = useMemo(() => safeABD.filter(i => isDateInRange(i.tanggal)), [safeABD, dateFilter, customStartDate, customEndDate]);
+  const filteredAksesoris = useMemo(() => safeAksesoris.filter(i => isSalesTransaction(i) && isDateInRange(i.tanggal)), [safeAksesoris, dateFilter, customStartDate, customEndDate]);
+  const filteredJasaPeriksa = useMemo(() => safeJasaPeriksa.filter(i => isSalesTransaction(i) && isDateInRange(i.tanggal)), [safeJasaPeriksa, dateFilter, customStartDate, customEndDate]);
+  const filteredABD = useMemo(() => safeABD.filter(i => isSalesTransaction(i) && isDateInRange(i.tanggal)), [safeABD, dateFilter, customStartDate, customEndDate]);
   const filteredKasKecil = useMemo(() => safeKasKecil.filter(i => isDateInRange(i.tanggal)), [safeKasKecil, dateFilter, customStartDate, customEndDate]);
   const filteredEarmould = useMemo(() => safeEarmould.filter(i => isDateInRange(i.tanggalCetak || i.tanggalOrder || '')), [safeEarmould, dateFilter, customStartDate, customEndDate]);
   const filteredReparasi = useMemo(() => safeReparasi.filter(i => isDateInRange(i.tanggalMasuk || '')), [safeReparasi, dateFilter, customStartDate, customEndDate]);
@@ -170,15 +176,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const totalTxCount = filteredAksesoris.length + filteredJasaPeriksa.length + filteredABD.length;
 
   // Real-time "Hari Ini" calculations
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayDateString();
   const isTodayDate = (d?: string) => {
     if (!d) return false;
-    return d.startsWith(todayStr);
+    const cleanD = String(d).split('T')[0].trim();
+    return cleanD === todayStr;
   };
 
-  const todayAksesoris = useMemo(() => safeAksesoris.filter(i => isTodayDate(i.tanggal)), [safeAksesoris]);
-  const todayJasa = useMemo(() => safeJasaPeriksa.filter(i => isTodayDate(i.tanggal)), [safeJasaPeriksa]);
-  const todayABD = useMemo(() => safeABD.filter(i => isTodayDate(i.tanggal)), [safeABD]);
+  const todayAksesoris = useMemo(() => safeAksesoris.filter(i => isSalesTransaction(i) && isTodayDate(i.tanggal)), [safeAksesoris]);
+  const todayJasa = useMemo(() => safeJasaPeriksa.filter(i => isSalesTransaction(i) && isTodayDate(i.tanggal)), [safeJasaPeriksa]);
+  const todayABD = useMemo(() => safeABD.filter(i => isSalesTransaction(i) && isTodayDate(i.tanggal)), [safeABD]);
   const todayPatients = useMemo(() => patients.filter(i => isTodayDate(i.createdAt)), [patients]);
 
   const todayTxCount = todayAksesoris.length + todayJasa.length + todayABD.length;
@@ -330,7 +337,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 {mode === 'all' && 'Semua'}
                 {mode === 'today' && 'Hari Ini'}
                 {mode === 'week' && '7 Hari'}
-                {mode === 'month' && '30 Hari'}
+                {mode === 'month' && 'Bulan Ini'}
                 {mode === 'custom' && 'Kustom'}
               </button>
             ))}
@@ -559,12 +566,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* 2. QUESTION 9: PERFORMA & PERBANDINGAN 8 CABANG EARSOUND */}
       {/* ======================================================== */}
       <BranchPerformanceSection
-        allPatients={allPatients.length > 0 ? allPatients : patients}
-        allAksesoris={allAksesoris.length > 0 ? allAksesoris : safeAksesoris}
-        allJasaPeriksa={allJasaPeriksa.length > 0 ? allJasaPeriksa : safeJasaPeriksa}
-        allABD={allABD.length > 0 ? allABD : safeABD}
-        allEarmould={allEarmould.length > 0 ? allEarmould : safeEarmould}
-        allReparasi={allReparasi.length > 0 ? allReparasi : safeReparasi}
+        allPatients={filteredPatients}
+        allAksesoris={filteredAksesoris}
+        allJasaPeriksa={filteredJasaPeriksa}
+        allABD={filteredABD}
+        allEarmould={filteredEarmould}
+        allReparasi={filteredReparasi}
         activeBranchFilter={selectedBranch}
       />
 
@@ -572,8 +579,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* 3. QUESTION 8: PEKERJAAN SERVICE / LAB OUTSTANDING       */}
       {/* ======================================================== */}
       <OutstandingWorkSection
-        earmould={allEarmould.length > 0 ? allEarmould : safeEarmould}
-        reparasi={allReparasi.length > 0 ? allReparasi : safeReparasi}
+        earmould={filteredEarmould}
+        reparasi={filteredReparasi}
         setActiveTab={setActiveTab}
       />
 
@@ -592,18 +599,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       <div className="space-y-6">
         {/* 5. Persentase Sumber Referal & Analisis Efektivitas Marketing */}
         <ReferalBreakdownSection
-          patients={allPatients.length > 0 ? allPatients : patients}
-          jasaPeriksa={allJasaPeriksa.length > 0 ? allJasaPeriksa : safeJasaPeriksa}
-          abd={allABD.length > 0 ? allABD : safeABD}
-          aksesoris={allAksesoris.length > 0 ? allAksesoris : safeAksesoris}
-          earmould={allEarmould.length > 0 ? allEarmould : safeEarmould}
-          reparasi={allReparasi.length > 0 ? allReparasi : safeReparasi}
+          patients={filteredPatients}
+          jasaPeriksa={filteredJasaPeriksa}
+          abd={filteredABD}
+          aksesoris={filteredAksesoris}
+          earmould={filteredEarmould}
+          reparasi={filteredReparasi}
         />
 
         {/* 6. Persentase Produk Fisik Terjual */}
         <ProductSalesBreakdownSection
-          aksesoris={allAksesoris.length > 0 ? allAksesoris : safeAksesoris}
-          abd={allABD.length > 0 ? allABD : safeABD}
+          aksesoris={filteredAksesoris}
+          abd={filteredABD}
         />
       </div>
 

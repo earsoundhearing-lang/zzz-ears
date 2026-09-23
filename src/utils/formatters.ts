@@ -82,6 +82,77 @@ export function generateKwitansiNumber(seq: number): string {
   return `KWT-JSA/2026${month}/${padded}`;
 }
 
+export function getTodayDateString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function parseDateParts(dateStr?: string | null): { year: number; month: number; day: number } | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  const clean = dateStr.split('T')[0].trim();
+
+  // YYYY-MM-DD or YYYY/MM/DD
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(clean)) {
+    const p = clean.split(/[-/]/);
+    return {
+      year: parseInt(p[0], 10),
+      month: parseInt(p[1], 10) - 1, // 0-indexed month
+      day: parseInt(p[2], 10),
+    };
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(clean)) {
+    const p = clean.split(/[-/]/);
+    let d = parseInt(p[0], 10);
+    let m = parseInt(p[1], 10) - 1; // 0-indexed month
+    let y = parseInt(p[2], 10);
+    if (y < 100) y += 2000;
+
+    if (m > 11 && d <= 12) {
+      const temp = d;
+      d = m + 1;
+      m = temp - 1;
+    }
+    return { year: y, month: m, day: d };
+  }
+
+  return null;
+}
+
+export function isSalesTransaction(item: any): boolean {
+  if (!item) return false;
+
+  const fieldsToCheck = [
+    item.category,
+    item.subtype,
+    Array.isArray(item.jenisPemeriksaan) ? item.jenisPemeriksaan.join(' ') : item.jenisPemeriksaan,
+    item.tipeABD,
+    item.caseType,
+    item.transaksiItem,
+    item.catatan,
+    item.catatanHasil,
+    item.keterangan
+  ];
+
+  const text = fieldsToCheck.filter(Boolean).join(' ').toLowerCase();
+
+  if (
+    text.includes('uang masuk') ||
+    text.includes('kas masuk') ||
+    text.includes('pelunasan piutang') ||
+    text.includes('pelunasan') ||
+    text.includes('dp / pelunasan')
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function formatPatientWithGelar(name?: string, gelar?: string): string {
   if (!name) return '-';
   const trimmed = name.trim();

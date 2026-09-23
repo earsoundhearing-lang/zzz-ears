@@ -243,3 +243,65 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Suriyanti Chudri, Sp.THT (AC)',
   'dr. T. Husni T. R,,M.Kes,Sp.THT (AC)',
 ];
+
+export const matchOfficialDoctorName = (raw: string | undefined | null): string | null => {
+  if (!raw || !raw.trim()) return null;
+  let cleaned = raw.trim();
+
+  // Strip leading "Dr:" or "Dr :" or "Dr. :"
+  cleaned = cleaned.replace(/^dr:?\s*/i, '').replace(/^dr\.\s*/i, 'dr. ').trim();
+
+  // If already exact match
+  const exact = DOCTOR_REFERRAL_LIST.find((d) => d.toLowerCase() === cleaned.toLowerCase());
+  if (exact) return exact;
+
+  const lower = cleaned.toLowerCase();
+
+  // Direct keyword mappings for common shorthand names
+  if (lower.includes('sweet')) {
+    return 'dr. Sweet C.Marpaung Sp.THT-KL';
+  }
+  if (lower.includes('maesarah') || lower.includes('maesyara')) {
+    return 'dr. Maesyara Adinda Sari, Sp.THT (SU)';
+  }
+  if (lower.includes('carlo')) {
+    return 'dr. Carlo Maulana Akbar, Sp., THT (SU)';
+  }
+  if (lower.includes('hotmaida')) {
+    return 'dr. Hotmaida S. Simbolon, Sp.THT (SU)';
+  }
+  if (lower.includes('ralph') || lower.includes('lukas')) {
+    return 'dr. Ralph Lukas Sudarto Sitorus, Sp. THT (SU)';
+  }
+  if (lower.includes('deddy') || lower.includes('eko')) {
+    return 'dr. Deddy Eko Susilo, Sp.THT (SU)';
+  }
+
+  // Tokenize words
+  const words = lower
+    .replace(/^(dr|dokter):?\s*/gi, '')
+    .replace(/sp\.?\s*tht.*/gi, '')
+    .split(/[\s,\.\-]+/)
+    .filter((w) => w.length >= 3 && !['dokter', 'spesialis', 'tht', 'atau', 'dan'].includes(w));
+
+  if (words.length === 0) return cleaned;
+
+  let bestMatch: string | null = null;
+  let maxScore = 0;
+
+  for (const official of DOCTOR_REFERRAL_LIST) {
+    const offLower = official.toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      if (offLower.includes(w)) {
+        score += w.length;
+      }
+    }
+    if (score > maxScore && score >= 3) {
+      maxScore = score;
+      bestMatch = official;
+    }
+  }
+
+  return bestMatch || cleaned;
+};

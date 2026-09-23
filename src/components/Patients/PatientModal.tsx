@@ -4,6 +4,7 @@ import { calculateAge, generatePatientId } from '../../utils/formatters';
 import { PROVINSI_INDONESIA, getKabupatenList } from '../../utils/indonesiaLocations';
 import { X, UserPlus, Check, User, MapPin } from 'lucide-react';
 import { SearchableDoctorSelect } from '../Common/SearchableDoctorSelect';
+import { matchOfficialDoctorName } from '../../data/doctors';
 
 interface PatientModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface PatientModalProps {
   existingCount: number;
   patientToEdit?: Patient | null;
   activeBranchCode?: string;
+  existingPatients?: Patient[];
 }
 
 export const DEFAULT_RS_LAB_KLINIK_LIST = [
@@ -44,12 +46,13 @@ export const PatientModal: React.FC<PatientModalProps> = ({
   existingCount,
   patientToEdit,
   activeBranchCode = 'HQ',
+  existingPatients = [],
 }) => {
   const [formData, setFormData] = useState<Partial<Patient>>({
     id: '',
     gelar: '',
     nama: '',
-    tanggalLahir: '1985-01-01',
+    tanggalLahir: '',
     usia: 0,
     gender: 'L',
     telepon: '',
@@ -69,18 +72,27 @@ export const PatientModal: React.FC<PatientModalProps> = ({
   const [isCustomProvinsi, setIsCustomProvinsi] = useState(false);
   const [isCustomKabupaten, setIsCustomKabupaten] = useState(false);
 
+  const duplicateMatch = React.useMemo(() => {
+    if (!formData.nama || !formData.nama.trim() || !existingPatients || existingPatients.length === 0) {
+      return null;
+    }
+    const targetName = formData.nama.trim().toLowerCase();
+    return existingPatients.find(
+      (p) => p.nama.trim().toLowerCase() === targetName && p.id !== patientToEdit?.id
+    );
+  }, [formData.nama, existingPatients, patientToEdit]);
+
   useEffect(() => {
     if (patientToEdit) {
       setFormData(patientToEdit);
     } else {
       const newId = generatePatientId(existingCount, activeBranchCode);
-      const defaultBirth = '1985-01-01';
       setFormData({
         id: newId,
         gelar: '',
         nama: '',
-        tanggalLahir: defaultBirth,
-        usia: calculateAge(defaultBirth),
+        tanggalLahir: '',
+        usia: 0,
         gender: 'L',
         telepon: '',
         alamat: {
@@ -162,6 +174,11 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       return;
     }
 
+    if (duplicateMatch) {
+      alert(`Pasien dengan nama "${duplicateMatch.nama}" sudah terdaftar (ID: ${duplicateMatch.id}).\n\nPencatatan nama pasien ganda tidak diperbolehkan. Mohon pilih atau gunakan data pasien yang sudah ada.`);
+      return;
+    }
+
     const isOnline = 
       (formData.referal === 'Google' && formData.referalChannel !== 'Google Maps' && formData.referalChannel !== 'Google Maps (Gmaps)' && formData.referalChannel !== 'Google Maps / GMB') || 
       formData.referal === 'Social Media (FB, IG, Tiktok)' || 
@@ -179,6 +196,14 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       ? 'Online' 
       : 'Offline';
 
+    const rawDoctor = formData.namaDokter?.trim();
+    const matchedDoctor = matchOfficialDoctorName(rawDoctor) || rawDoctor;
+
+    let finalReferal = (formData.referal as ReferalSource) || 'Plang Toko, Neonbox, Google Maps / Walk-in';
+    if (matchedDoctor) {
+      finalReferal = 'Dokter Umum dan Dokter Spesialis';
+    }
+
     const finalPatient: Patient = {
       id: formData.id || generatePatientId(existingCount, activeBranchCode),
       gelar: formData.gelar?.trim() || undefined,
@@ -193,8 +218,8 @@ export const PatientModal: React.FC<PatientModalProps> = ({
         kabupatenKota: formData.alamat?.kabupatenKota || '-',
         provinsi: formData.alamat?.provinsi || '-',
       },
-      referal: (formData.referal as ReferalSource) || 'Plang Toko, Neonbox, Google Maps / Walk-in',
-      namaDokter: formData.namaDokter?.trim() || undefined,
+      referal: finalReferal,
+      namaDokter: matchedDoctor || undefined,
       namaRS: formData.namaRS?.trim() || undefined,
       referalChannel: formData.referalChannel?.trim() || undefined,
       referalCategory: determinedCategory,
@@ -287,21 +312,27 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                   placeholder="Contoh: Budi Santoso"
                   value={formData.nama || ''}
                   onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2.5 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-[#23277A] focus:border-[#23277A]"
+                  className={`w-full bg-white border rounded-lg pl-9 pr-3 py-2.5 text-sm text-slate-800 font-medium focus:ring-2 ${
+                    duplicateMatch ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-300 focus:ring-[#23277A] focus:border-[#23277A]'
+                  }`}
                 />
               </div>
+              {duplicateMatch && (
+                <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 font-medium leading-tight">
+                  ⚠️ <strong>Nama Pasien Terdaftar:</strong> "{duplicateMatch.nama}" sudah ada (ID: <span className="font-mono font-bold">{duplicateMatch.id}</span>). Pencatatan ganda tidak diizinkan.
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Tanggal Lahir, Usia Otomatis, Gender */}
+          {/* Tanggal Lahir, Usia, Gender */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tanggal Lahir <span className="text-red-500">*</span>
+                Tanggal Lahir <span className="text-slate-400 font-normal">(Opsional)</span>
               </label>
               <input
                 type="date"
-                required
                 value={formData.tanggalLahir || ''}
                 onChange={(e) => handleBirthDateChange(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-[#23277A]"
@@ -312,12 +343,24 @@ export const PatientModal: React.FC<PatientModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Usia Saat Ini (Tahun)
               </label>
-              <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-slate-900 flex items-center justify-between">
-                <span>{formData.usia ?? 0} Tahun</span>
-                <span className="text-xs text-[#23277A] bg-indigo-50 px-2 py-0.5 rounded font-semibold border border-indigo-200">
-                  Otomatis
-                </span>
-              </div>
+              {formData.tanggalLahir ? (
+                <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-slate-900 flex items-center justify-between">
+                  <span>{formData.usia ?? 0} Tahun</span>
+                  <span className="text-xs text-[#23277A] bg-indigo-50 px-2 py-0.5 rounded font-semibold border border-indigo-200">
+                    Otomatis
+                  </span>
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  placeholder="Masukkan usia"
+                  value={formData.usia || ''}
+                  onChange={(e) => setFormData({ ...formData, usia: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A]"
+                />
+              )}
             </div>
 
             <div>

@@ -13,18 +13,24 @@ import {
   Pie, 
   Cell 
 } from 'recharts';
-import { DollarSign, Wallet, CreditCard, Hospital, Building2, PieChart as PieIcon, BarChart2, Filter } from 'lucide-react';
+import { DollarSign, Wallet, CreditCard, Hospital, Building2, PieChart as PieIcon, BarChart2, Filter, Trash2 } from 'lucide-react';
 
 interface UangMasukReportProps {
   aksesoris: AksesorisTransaction[];
   jasaPeriksa: JasaPeriksaTransaction[];
   abd: ABDTransaction[];
+  onDeleteAksesoris?: (id: string) => void;
+  onDeleteJasa?: (id: string) => void;
+  onDeleteABD?: (id: string) => void;
 }
 
 export const UangMasukReport: React.FC<UangMasukReportProps> = ({
   aksesoris = [],
   jasaPeriksa = [],
   abd = [],
+  onDeleteAksesoris,
+  onDeleteJasa,
+  onDeleteABD,
 }) => {
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
 
@@ -324,6 +330,7 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
                 <th className="p-3.5">Deskripsi Item</th>
                 <th className="p-3.5">Cara Pembayaran</th>
                 <th className="p-3.5 text-right">Nominal Omset</th>
+                <th className="p-3.5 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -399,6 +406,23 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
                   </td>
                   <td className="p-3.5 text-right font-black text-emerald-700 whitespace-nowrap">
                     {formatRupiah(item.jumlah)}
+                  </td>
+                  <td className="p-3.5 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => {
+                        if (item.tipe === 'Aksesoris' && onDeleteAksesoris) {
+                          onDeleteAksesoris(item.id);
+                        } else if (item.tipe === 'Jasa Periksa' && onDeleteJasa) {
+                          onDeleteJasa(item.id);
+                        } else if (item.tipe === 'Alat Bantu Dengar' && onDeleteABD) {
+                          onDeleteABD(item.id);
+                        }
+                      }}
+                      className="inline-flex items-center justify-center p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="Hapus Transaksi"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}

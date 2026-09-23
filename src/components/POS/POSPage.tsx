@@ -1217,6 +1217,7 @@ export const POSPage: React.FC<POSPageProps> = ({
         existingCount={patients.length}
         patientToEdit={null}
         activeBranchCode={activeBranchCode}
+        existingPatients={patients}
       />
 
       {/* ABD CONFIGURATION MODAL */}

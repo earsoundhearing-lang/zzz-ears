@@ -23,6 +23,7 @@ import { POSPage } from './components/POS/POSPage';
 import { PrintInvoiceModal } from './components/Common/PrintInvoiceModal';
 import { PinVerificationModal } from './components/Common/PinVerificationModal';
 import { AppExitModal } from './components/Common/AppExitModal';
+import { SpreadsheetImporterModal } from './components/Import/SpreadsheetImporterModal';
 
 import { 
   Patient, 
@@ -49,7 +50,7 @@ import {
   DEFAULT_USERS
 } from './utils/storage';
 import { useFirestoreCollections } from './hooks/useFirestoreCollections';
-import { dbOps, inventoryDbOps } from './services/dbOperations';
+import { dbOps, inventoryDbOps, purgeJanuaryData } from './services/dbOperations';
 import { generateBundlingInventoryEntries } from './utils/bundlingInventory';
 import { findABDSku, findAksesorisSku, getAksesorisBySku } from './data/skuCatalog';
 import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus } from './utils/sonicAmplifierHelper';
@@ -73,6 +74,17 @@ export default function App() {
       setActiveTab('inventori');
     }
   }, [currentUser, activeTab]);
+
+  // Purge January transactions & patients as requested by user
+  useEffect(() => {
+    const purgeKey = 'earsound_purged_jan_v1';
+    if (!localStorage.getItem(purgeKey)) {
+      purgeJanuaryData().then((res) => {
+        localStorage.setItem(purgeKey, 'true');
+        console.log("Purged January data on startup:", res);
+      }).catch(err => console.error("Purge Jan error:", err));
+    }
+  }, []);
 
   // State Management (Real-time from Firestore)
   const { users, patients, aksesoris, jasaPeriksa, abd, earmould, reparasi, kasKecil, inventoryABD, inventoryAksesoris, crmNotes, loading, error } = useFirestoreCollections();
@@ -104,6 +116,9 @@ export default function App() {
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printTx, setPrintTx] = useState<AksesorisTransaction | JasaPeriksaTransaction | ABDTransaction | null>(null);
   const [printType, setPrintType] = useState<'AKS' | 'JSA' | 'ABD'>('AKS');
+
+  // Google Spreadsheet Importer Modal
+  const [isImporterModalOpen, setIsImporterModalOpen] = useState(false);
 
   const [pinDeletionConfig, setPinDeletionConfig] = useState<{
     isOpen: boolean;
@@ -229,6 +244,7 @@ export default function App() {
 
   // Filter Data based on Active User Branch & Selected Branch (Isolation Rule)
   const isHQ = currentUser?.branchCode === 'HQ' || currentUser?.role === 'CEO' || currentUser?.branchCode === 'ALL';
+  const isCEO = currentUser?.role === 'CEO' || currentUser?.branchCode === 'HQ' || currentUser?.branchCode === 'ALL';
 
   // Pasien terkoneksi antar cabang - semua cabang bisa melihat semua pasien
   const visiblePatients = useMemo(() => patients, [patients]);
@@ -991,6 +1007,7 @@ export default function App() {
         selectedBranch={selectedBranch}
         onSelectBranch={handleSelectBranch}
         onOpenLoginModal={handleLogout}
+        onOpenSpreadsheetImporter={isCEO ? () => setIsImporterModalOpen(true) : undefined}
         onAddPatient={() => {
           setPatientToEdit(null);
           setIsPatientModalOpen(true);
@@ -1058,6 +1075,7 @@ export default function App() {
                 setPatientToEdit(null);
                 setIsPatientModalOpen(true);
               }}
+              onOpenSpreadsheetImporter={isCEO ? () => setIsImporterModalOpen(true) : undefined}
               onEditPatient={handleStartEditPatient}
               onDeletePatient={handleDeletePatient}
               // Pass global data so the patient history shows transactions from ALL branches
@@ -1118,6 +1136,9 @@ export default function App() {
               aksesoris={visibleAksesoris}
               jasaPeriksa={visibleJasaPeriksa}
               abd={visibleABD}
+              onDeleteAksesoris={handleDeleteAksesoris}
+              onDeleteJasa={handleDeleteJasa}
+              onDeleteABD={handleDeleteABD}
             />
           )}
 
@@ -1189,6 +1210,7 @@ export default function App() {
           existingCount={patients.length}
           patientToEdit={patientToEdit}
           activeBranchCode={activeWorkingBranch}
+          existingPatients={patients}
         />
 
         {/* User Switch / Login Modal */}
@@ -1236,6 +1258,20 @@ export default function App() {
           isOpen={showExitConfirmModal}
           onClose={() => setShowExitConfirmModal(false)}
           onConfirmExit={handleConfirmExitApp}
+        />
+
+        {/* Google Spreadsheet Importer Modal */}
+        <SpreadsheetImporterModal
+          isOpen={isImporterModalOpen}
+          onClose={() => setIsImporterModalOpen(false)}
+          existingPatients={patients}
+          defaultBranch={selectedBranch}
+          currentUserRole={currentUser?.role}
+          onSavePatient={handleSavePatient}
+          onSaveJasaPeriksa={handleSaveJasa}
+          onSaveAksesoris={handleAddAksesoris}
+          onSaveABD={handleAddABD}
+          onSaveReparasi={handleAddReparasi}
         />
 
 

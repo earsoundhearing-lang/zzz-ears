@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BRANCHES } from '../../utils/branches';
-import { formatRupiah } from '../../utils/formatters';
+import { formatRupiah, isSalesTransaction } from '../../utils/formatters';
 import { Building2, TrendingUp, Users, ShoppingBag, Stethoscope, Volume2, ArrowRight } from 'lucide-react';
 import { Patient, AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction, EarmouldReport, ReparasiService, BranchCode } from '../../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
@@ -35,17 +35,17 @@ export const BranchPerformanceSection: React.FC<BranchPerformanceSectionProps> =
       const patientsCount = allPatients.filter(p => p.branchCode === code).length;
 
       // Aksesoris transactions & omset
-      const aksList = allAksesoris.filter(a => a.branchCode === code);
+      const aksList = allAksesoris.filter(a => a.branchCode === code && isSalesTransaction(a));
       const aksOmset = aksList.reduce((sum, item) => sum + (item.jumlah || 0), 0);
       const aksTxCount = aksList.length;
 
       // Jasa transactions & omset
-      const jasaList = allJasaPeriksa.filter(j => j.branchCode === code);
+      const jasaList = allJasaPeriksa.filter(j => j.branchCode === code && isSalesTransaction(j));
       const jasaOmset = jasaList.reduce((sum, item) => sum + (item.biayaJasaPeriksa || 0), 0);
       const jasaTxCount = jasaList.length;
 
       // ABD transactions & omset
-      const abdList = allABD.filter(ab => ab.branchCode === code);
+      const abdList = allABD.filter(ab => ab.branchCode === code && isSalesTransaction(ab));
       const abdOmset = abdList.reduce((sum, item) => sum + (item.jumlah || 0), 0);
       const abdTxCount = abdList.length;
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Patient, AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction, EarmouldReport, ReparasiService, EarmouldStatus, JenisEarmould, FittingType } from '../../types';
 import { formatIndoDate, formatRupiah } from '../../utils/formatters';
-import { getBranchByCode } from '../../utils/branches';
+import { getBranchByCode, BRANCHES } from '../../utils/branches';
+import { matchOfficialDoctorName } from '../../data/doctors';
 import { PrintAudiogramModal } from '../Audiogram/PrintAudiogramModal';
 import { 
   UserPlus, 
@@ -22,7 +23,41 @@ import {
   Download,
   Activity,
   Printer,
+  FileSpreadsheet,
+  Building2,
+  ChevronDown,
 } from 'lucide-react';
+
+const getReferalAndDoctor = (p: Patient) => {
+  let doc = p.namaDokter ? (matchOfficialDoctorName(p.namaDokter) || p.namaDokter) : null;
+  let ref = p.referal;
+
+  if (!doc && ref) {
+    const refLower = ref.toLowerCase();
+    if (
+      refLower.includes('dr.') ||
+      refLower.includes('dr ') ||
+      refLower.includes('dr:') ||
+      refLower.includes('sweet') ||
+      refLower.includes('maesarah') ||
+      refLower.includes('maesyara') ||
+      refLower.includes('carlo') ||
+      refLower.includes('hotmaida') ||
+      refLower.includes('ralph') ||
+      refLower.includes('lukas') ||
+      refLower.includes('deddy') ||
+      refLower.includes('eko')
+    ) {
+      doc = matchOfficialDoctorName(ref) || ref;
+    }
+  }
+
+  if (doc) {
+    ref = 'Dokter Umum dan Dokter Spesialis';
+  }
+
+  return { displayReferal: ref, displayDoctor: doc };
+};
 
 interface PatientListProps {
   patients: Patient[];
@@ -36,6 +71,7 @@ interface PatientListProps {
   reparasi: ReparasiService[];
   onUpdateEarmouldStatus?: (id: string, newStatus: EarmouldStatus) => void;
   onAddEarmould?: (item: EarmouldReport) => void;
+  onOpenSpreadsheetImporter?: () => void;
 }
 
 export const PatientList: React.FC<PatientListProps> = ({
@@ -50,8 +86,10 @@ export const PatientList: React.FC<PatientListProps> = ({
   reparasi = [],
   onUpdateEarmouldStatus,
   onAddEarmould,
+  onOpenSpreadsheetImporter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [quickEarmouldModalPatient, setQuickEarmouldModalPatient] = useState<Patient | null>(null);
   const [selectedJasaForAudiogram, setSelectedJasaForAudiogram] = useState<JasaPeriksaTransaction | null>(null);
@@ -61,14 +99,30 @@ export const PatientList: React.FC<PatientListProps> = ({
   const [qty, setQty] = useState<FittingType>('Binaural');
   const [catatan, setCatatan] = useState('');
 
+  const getPatientBranchCode = (p: Patient): string => {
+    if (p.branchCode) return p.branchCode;
+    if (p.id && p.id.startsWith('ES-')) {
+      const parts = p.id.split('-');
+      if (parts.length >= 2 && parts[1]) {
+        return parts[1];
+      }
+    }
+    return 'YM';
+  };
+
   const filteredPatients = patients.filter((p) => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       p.nama.toLowerCase().includes(term) ||
       p.id.toLowerCase().includes(term) ||
       p.telepon.includes(term) ||
       p.alamat.kabupatenKota.toLowerCase().includes(term)
     );
+
+    const bCode = getPatientBranchCode(p);
+    const matchesBranch = selectedBranchFilter === 'ALL' || bCode === selectedBranchFilter;
+
+    return matchesSearch && matchesBranch;
   });
 
   const handleQuickAddEarmouldSubmit = (e: React.FormEvent) => {
@@ -178,6 +232,15 @@ export const PatientList: React.FC<PatientListProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
+          {onOpenSpreadsheetImporter && (
+            <button
+              onClick={onOpenSpreadsheetImporter}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-sm transition-all whitespace-nowrap cursor-pointer"
+            >
+              <FileSpreadsheet className="w-5 h-5 text-emerald-200" />
+              <span>Import Google Sheets / Excel</span>
+            </button>
+          )}
           <button
             onClick={handleDownloadCSV}
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm shadow-sm transition-all whitespace-nowrap border border-slate-300"
@@ -197,21 +260,81 @@ export const PatientList: React.FC<PatientListProps> = ({
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Cari Nama, ID, Telepon, atau Kota..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-[#23277A]"
-          />
+      <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-200 space-y-3">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                placeholder="Cari Nama, ID, Telepon, atau Kota..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-[#23277A]"
+              />
+            </div>
+
+            {/* Branch Filter Dropdown */}
+            <div className="relative w-full sm:w-72">
+              <Building2 className="w-4 h-4 text-[#23277A] absolute left-3 top-3" />
+              <select
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-8 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#23277A] appearance-none cursor-pointer"
+              >
+                <option value="ALL">🏢 Semua Cabang Terdaftar</option>
+                {BRANCHES.map((b) => {
+                  const count = patients.filter((p) => getPatientBranchCode(p) === b.code).length;
+                  return (
+                    <option key={b.code} value={b.code}>
+                      [{b.code}] {b.name} ({count} Pasien)
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="text-xs font-semibold text-slate-600 flex items-center gap-2 whitespace-nowrap self-end md:self-center">
+            <Filter className="w-4 h-4 text-[#23277A]" />
+            <span>Menampilkan <strong className="text-[#23277A] font-extrabold text-sm">{filteredPatients.length}</strong> dari {patients.length} Pasien</span>
+          </div>
         </div>
 
-        <div className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <span>Menampilkan {filteredPatients.length} dari {patients.length} Pasien</span>
+        {/* Quick Branch Filter Badges */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 text-xs no-scrollbar">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Filter Cepat:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedBranchFilter('ALL')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              selectedBranchFilter === 'ALL'
+                ? 'bg-[#23277A] text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Semua ({patients.length})
+          </button>
+          {BRANCHES.map((b) => {
+            const count = patients.filter((p) => getPatientBranchCode(p) === b.code).length;
+            if (count === 0 && selectedBranchFilter !== b.code) return null;
+            return (
+              <button
+                key={b.code}
+                type="button"
+                onClick={() => setSelectedBranchFilter(b.code)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                  selectedBranchFilter === b.code
+                    ? 'bg-[#23277A] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {b.code} ({count})
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -239,7 +362,11 @@ export const PatientList: React.FC<PatientListProps> = ({
                       </span>
                     </div>
                     <h3 className="font-bold text-slate-900 text-sm mt-1">{p.nama}</h3>
-                    <p className="text-[11px] text-slate-500">{p.usia} Thn • {p.gender === 'L' ? 'Laki-Laki' : 'Perempuan'}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {p.usia && p.usia > 0 && p.usia <= 110 ? `${p.usia} Thn • ` : ''}
+                      {p.gender === 'L' ? 'Laki-Laki' : 'Perempuan'}
+                      {p.tanggalLahir ? ` • Lahir: ${formatIndoDate(p.tanggalLahir)}` : ''}
+                    </p>
                   </div>
 
                   <div className="flex gap-1">
@@ -278,26 +405,36 @@ export const PatientList: React.FC<PatientListProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                  <div className="text-[10px] text-slate-500">
-                    Referal: <span className="font-bold text-slate-700">{p.referal}</span>
-                  </div>
+                {(() => {
+                  const { displayReferal, displayDoctor } = getReferalAndDoctor(p);
+                  return (
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+                      <div className="text-[10px] text-slate-500">
+                        Referal: <span className="font-bold text-slate-700">{displayReferal}</span>
+                        {displayDoctor && (
+                          <span className="block font-bold text-[#23277A] text-[11px] mt-0.5">
+                            Dr: {displayDoctor}
+                          </span>
+                        )}
+                      </div>
 
-                  {latestEm ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="bg-amber-100 text-amber-900 text-[10px] px-1.5 py-0.5 rounded font-extrabold">
-                        {latestEm.jenisEarmould} ({latestEm.status})
-                      </span>
+                      {latestEm ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="bg-amber-100 text-amber-900 text-[10px] px-1.5 py-0.5 rounded font-extrabold">
+                            {latestEm.jenisEarmould} ({latestEm.status})
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setQuickEarmouldModalPatient(p)}
+                          className="text-[11px] font-bold text-[#23277A] bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100"
+                        >
+                          + Order Cetak
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setQuickEarmouldModalPatient(p)}
-                      className="text-[11px] font-bold text-[#23277A] bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100"
-                    >
-                      + Order Cetak
-                    </button>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             );
           })
@@ -340,14 +477,20 @@ export const PatientList: React.FC<PatientListProps> = ({
                       </td>
                       <td className="p-3.5 min-w-[180px]">
                         <div className="font-semibold text-slate-900">{p.nama}</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Calendar className="w-3 h-3" />
-                          <span>Lahir: {formatIndoDate(p.tanggalLahir)}</span>
-                        </div>
+                        {p.tanggalLahir ? (
+                          <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Calendar className="w-3 h-3" />
+                            <span>Lahir: {formatIndoDate(p.tanggalLahir)}</span>
+                          </div>
+                        ) : null}
                       </td>
                       <td className="p-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-800">{p.usia} Thn</span>
+                          {p.usia && p.usia > 0 && p.usia <= 110 ? (
+                            <span className="font-bold text-slate-800">{p.usia} Thn</span>
+                          ) : (
+                            <span className="text-slate-400 text-xs font-semibold">-</span>
+                          )}
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                               p.gender === 'L'
@@ -433,14 +576,21 @@ export const PatientList: React.FC<PatientListProps> = ({
 
                       {/* Sumber Referal */}
                       <td className="p-3.5 text-xs min-w-[160px]">
-                        <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg font-semibold text-[11px] border border-slate-200">
-                          {p.referal}
-                        </span>
-                        {p.namaDokter && (
-                          <div className="text-[#23277A] font-bold text-[11px] mt-1 flex items-center gap-1">
-                            <span>Dr: {p.namaDokter}</span>
-                          </div>
-                        )}
+                        {(() => {
+                          const { displayReferal, displayDoctor } = getReferalAndDoctor(p);
+                          return (
+                            <>
+                              <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg font-semibold text-[11px] border border-slate-200">
+                                {displayReferal}
+                              </span>
+                              {displayDoctor && (
+                                <div className="text-[#23277A] font-bold text-[11px] mt-1 flex items-center gap-1">
+                                  <span>Dr: {displayDoctor}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
 
                       {/* Aksi (Fixed right) */}
