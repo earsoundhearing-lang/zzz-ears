@@ -790,25 +790,46 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                       <div>
                         <label className="block text-[10px] font-bold text-slate-700 mb-1 flex justify-between items-center">
                           <span>No. Seri ABD yang Digunakan (SKU: {getSonicAmplifierTargetSkus(subtype).join(', ')})</span>
-                          <span className="text-[#23277A] font-bold">Terhubung Stok ABD</span>
+                          <span className="text-[#23277A] font-bold">Terhubung Stok ABD & Inventori</span>
                         </label>
                         {availableSonicABDList.length > 0 ? (
-                          <select
-                            value={noSeri}
-                            onChange={(e) => setNoSeri(e.target.value)}
-                            className="w-full bg-white border-2 border-[#23277A] rounded-xl p-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A]"
-                          >
-                            <option value="">-- Pilih No. Seri dari Stok ABD --</option>
-                            {availableSonicABDList.map((stk) => (
-                              <option key={stk.inventoryId} value={stk.noSeri}>
-                                No. Seri: {stk.noSeri} | SKU: {stk.sku} ({stk.tipeABD})
-                              </option>
-                            ))}
-                          </select>
+                          <div className="space-y-1">
+                            <select
+                              value={noSeri}
+                              onChange={(e) => setNoSeri(e.target.value)}
+                              className="w-full bg-white border-2 border-[#23277A] rounded-xl p-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A]"
+                            >
+                              <option value="">-- Pilih No. Seri dari Stok ABD --</option>
+                              {availableSonicABDList.map((stk) => (
+                                <option key={stk.inventoryId} value={stk.noSeri}>
+                                  No. Seri: {stk.noSeri} | SKU: {stk.sku} ({stk.tipeABD})
+                                </option>
+                              ))}
+                            </select>
+                            <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                              ✓ {getBranchStock(subtype, category)} Pcs Stok fisik tersedia di cabang [{activeBranchCode}]
+                            </p>
+                          </div>
+                        ) : getBranchStock(subtype, category) > 0 ? (
+                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
+                            <p className="text-[10px] text-emerald-800 font-bold flex items-center gap-1">
+                              ✓ Stok Fisik Tersedia di Cabang [{activeBranchCode}]: {getBranchStock(subtype, category)} Pcs
+                            </p>
+                            <p className="text-[10px] text-emerald-700">
+                              Masukkan No. Seri (opsional / jika ada):
+                            </p>
+                            <input
+                              type="text"
+                              placeholder="Masukkan No. Seri manual..."
+                              value={noSeri}
+                              onChange={(e) => setNoSeri(e.target.value)}
+                              className="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#23277A] outline-none"
+                            />
+                          </div>
                         ) : (
-                          <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
                             <p className="text-[10px] text-amber-800 font-semibold">
-                              ⚠️ Belum ada stok fisik ABD ({getSonicAmplifierTargetSkus(subtype).join(', ')}) di cabang [{activeBranchCode}]. Anda tetap dapat memasukkan No. Seri manual:
+                              ⚠️ Belum ada stok fisik ({getSonicAmplifierTargetSkus(subtype).join(', ')}) di cabang [{activeBranchCode}]. Anda tetap dapat memasukkan No. Seri manual:
                             </p>
                             <input
                               type="text"
