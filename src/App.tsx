@@ -1096,6 +1096,7 @@ export default function App() {
               currentUser={currentUser}
               selectedBranch={selectedBranch}
               inventoryAksesoris={inventoryAksesoris}
+              inventoryABD={inventoryABD}
               onAddTransaction={handleAddAksesoris}
               onSaveTransaction={handleSaveAksesoris}
               onDeleteTransaction={handleDeleteAksesoris}

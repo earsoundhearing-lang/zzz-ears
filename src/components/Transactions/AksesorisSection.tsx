@@ -16,7 +16,7 @@ import {
   ABDInventoryEntry
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
-import { generateBranchInvoiceNumber } from '../../utils/branches';
+import { generateBranchInvoiceNumber, BRANCHES } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, CatalogItem } from '../../data/priceCatalog';
@@ -175,17 +175,28 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
 
     let abdStock = 0;
     if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName)) {
-      abdStock = getAvailableSonicABDStock(subtypeName, inventoryABD, activeBranchCode).length;
+      return getAvailableSonicABDStock(subtypeName, inventoryABD, activeBranchCode).length;
     }
 
-    return aksesorisStock + abdStock;
+    return aksesorisStock;
   };
 
   // Check available stock in other branches if active branch has 0 pcs
   const getOtherBranchesStockInfo = (subtypeName: string, categoryName: string): string | null => {
     const branchTotals: Record<string, number> = {};
 
-    if (inventoryAksesoris && inventoryAksesoris.length > 0) {
+    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName)) {
+      if (inventoryABD && inventoryABD.length > 0) {
+        BRANCHES.forEach((b) => {
+          if (b.code !== activeBranchCode) {
+            const count = getAvailableSonicABDStock(subtypeName, inventoryABD, b.code).length;
+            if (count > 0) {
+              branchTotals[b.code] = count;
+            }
+          }
+        });
+      }
+    } else if (inventoryAksesoris && inventoryAksesoris.length > 0) {
       const sku = findAksesorisSku(subtypeName, categoryName);
       const master = (sku && sku !== '-') ? getAksesorisBySku(sku) : undefined;
       const canonicalSku = master?.sku || (sku && sku !== '-' ? sku : undefined);
@@ -217,20 +228,6 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       });
     }
 
-    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName) && inventoryABD) {
-      const otherBranchesABD = getAvailableABDStockInBranch(inventoryABD, 'ALL_OTHER'); // check ABD across branches
-      inventoryABD.forEach((inv) => {
-        const bCode = inv.branchCode || 'YM';
-        if (bCode !== activeBranchCode && inv.type === 'MASUK') {
-          const targetSkus = getSonicAmplifierTargetSkus(subtypeName);
-          const invSku = inv.sku || findABDSku(inv.tipeABD, inv.model) || '';
-          if (targetSkus.includes(invSku.toUpperCase())) {
-            // Count ABD in other branches
-          }
-        }
-      });
-    }
-
     const nonZeroBranches = Object.entries(branchTotals)
       .filter(([_, qty]) => qty > 0)
       .map(([bCode, qty]) => `${qty} Pcs di Cabang [${bCode}]`);
@@ -248,6 +245,68 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     }
     return [];
   }, [category, subtype, inventoryABD, activeBranchCode]);
+
+  // Generated dropdown options for serial numbers or available stock items
+  const generatedSerialOptions = React.useMemo(() => {
+    const options: { label: string; value: string }[] = [];
+    const addedSerials = new Set<string>();
+
+    // 1. Get available physical ABD items strictly in activeBranchCode matching this subtype/SKUs
+    if (category === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtype)) {
+      const sonicABDList = getAvailableSonicABDStock(subtype, inventoryABD, activeBranchCode);
+      sonicABDList.forEach((stk) => {
+        if (stk.noSeri && stk.noSeri.trim() && !addedSerials.has(stk.noSeri.trim())) {
+          addedSerials.add(stk.noSeri.trim());
+          options.push({
+            label: `${stk.noSeri.trim()} (${stk.tipeABD}${stk.sku && stk.sku !== '-' ? ` - ${stk.sku}` : ''})`,
+            value: stk.noSeri.trim(),
+          });
+        }
+      });
+      return options;
+    }
+
+    // 2. Search Aksesoris Inventory entries strictly in activeBranchCode matching subtype with serial numbers
+    if (inventoryAksesoris && inventoryAksesoris.length > 0) {
+      inventoryAksesoris.forEach((inv) => {
+        const bCode = inv.branchCode || 'YM';
+        if (bCode === activeBranchCode && inv.type === 'MASUK' && inv.noSeri && inv.noSeri.trim()) {
+          const invTipe = (inv.tipe || '').trim().toLowerCase();
+          const searchSubtype = subtype.trim().toLowerCase();
+          const isMatch = invTipe.includes(searchSubtype) || searchSubtype.includes(invTipe);
+
+          if (isMatch) {
+            const sn = inv.noSeri.trim();
+            if (!addedSerials.has(sn)) {
+              addedSerials.add(sn);
+              options.push({
+                label: `${sn} (${inv.tipe || subtype})`,
+                value: sn,
+              });
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Fallback if stock quantity exists in activeBranchCode but no explicit serial number was entered
+    const currentBranchStock = getBranchStock(subtype, category);
+    if (options.length < currentBranchStock) {
+      const needed = currentBranchStock - options.length;
+      for (let i = 1; i <= needed; i++) {
+        const unitIdx = options.length + i;
+        options.push({
+          label: `Gunakan Unit Stok #${unitIdx} (${subtype})`,
+          value: `STOK-UNIT-${unitIdx}`,
+        });
+      }
+    }
+
+    return options;
+  }, [inventoryABD, inventoryAksesoris, activeBranchCode, subtype, category]);
+
+  // Toggle for custom manual serial input if requested
+  const [isCustomSerialInput, setIsCustomSerialInput] = useState(false);
 
   const handlePatientSelect = (patientId: string) => {
     setIdPelanggan(patientId);
@@ -789,42 +848,59 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                     {isSonicAmplifierSubtype(subtype) ? (
                       <div>
                         <label className="block text-[10px] font-bold text-slate-700 mb-1 flex justify-between items-center">
-                          <span>No. Seri ABD yang Digunakan (SKU: {getSonicAmplifierTargetSkus(subtype).join(', ')})</span>
+                          <span>Pilih No. Seri / Unit Stok ({getSonicAmplifierTargetSkus(subtype).join(', ')})</span>
                           <span className="text-[#23277A] font-bold">Terhubung Stok ABD & Inventori</span>
                         </label>
-                        {availableSonicABDList.length > 0 ? (
-                          <div className="space-y-1">
-                            <select
-                              value={noSeri}
-                              onChange={(e) => setNoSeri(e.target.value)}
-                              className="w-full bg-white border-2 border-[#23277A] rounded-xl p-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A]"
-                            >
-                              <option value="">-- Pilih No. Seri dari Stok ABD --</option>
-                              {availableSonicABDList.map((stk) => (
-                                <option key={stk.inventoryId} value={stk.noSeri}>
-                                  No. Seri: {stk.noSeri} | SKU: {stk.sku} ({stk.tipeABD})
-                                </option>
-                              ))}
-                            </select>
-                            <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                              ✓ {getBranchStock(subtype, category)} Pcs Stok fisik tersedia di cabang [{activeBranchCode}]
+                        {getBranchStock(subtype, category) > 0 ? (
+                          <div className="space-y-1.5 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                            <p className="text-[10px] text-emerald-800 font-bold flex items-center justify-between">
+                              <span>✓ Stok Fisik Tersedia di Cabang [{activeBranchCode}]: {getBranchStock(subtype, category)} Pcs</span>
                             </p>
-                          </div>
-                        ) : getBranchStock(subtype, category) > 0 ? (
-                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
-                            <p className="text-[10px] text-emerald-800 font-bold flex items-center gap-1">
-                              ✓ Stok Fisik Tersedia di Cabang [{activeBranchCode}]: {getBranchStock(subtype, category)} Pcs
-                            </p>
-                            <p className="text-[10px] text-emerald-700">
-                              Masukkan No. Seri (opsional / jika ada):
-                            </p>
-                            <input
-                              type="text"
-                              placeholder="Masukkan No. Seri manual..."
-                              value={noSeri}
-                              onChange={(e) => setNoSeri(e.target.value)}
-                              className="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#23277A] outline-none"
-                            />
+
+                            {!isCustomSerialInput ? (
+                              <div className="space-y-1">
+                                <select
+                                  value={noSeri}
+                                  onChange={(e) => {
+                                    if (e.target.value === '__CUSTOM__') {
+                                      setIsCustomSerialInput(true);
+                                      setNoSeri('');
+                                    } else {
+                                      setNoSeri(e.target.value);
+                                    }
+                                  }}
+                                  className="w-full bg-white border-2 border-emerald-600 rounded-xl p-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23277A] cursor-pointer"
+                                >
+                                  <option value="">-- Klik untuk Pilih No. Seri Alat --</option>
+                                  {generatedSerialOptions.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                  <option value="__CUSTOM__">✍️ Ketik No. Seri Manual Secara Khusus...</option>
+                                </select>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold text-slate-700">Ketik No. Seri Manual:</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsCustomSerialInput(false)}
+                                    className="text-[10px] text-[#23277A] underline font-bold cursor-pointer"
+                                  >
+                                    « Kembali ke Pilihan Dropdown
+                                  </button>
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder="Masukkan No. Seri manual..."
+                                  value={noSeri}
+                                  onChange={(e) => setNoSeri(e.target.value)}
+                                  className="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#23277A] outline-none"
+                                />
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
