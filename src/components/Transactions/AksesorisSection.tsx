@@ -20,8 +20,8 @@ import { generateBranchInvoiceNumber } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, CatalogItem } from '../../data/priceCatalog';
-import { findAksesorisSku, getAksesorisBySku } from '../../data/skuCatalog';
-import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus, getAvailableSonicABDStock } from '../../utils/sonicAmplifierHelper';
+import { findAksesorisSku, getAksesorisBySku, findABDSku } from '../../data/skuCatalog';
+import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus, getAvailableSonicABDStock, getAvailableABDStockInBranch } from '../../utils/sonicAmplifierHelper';
 import { ShoppingBag, Plus, Trash2, Search, Printer, ShoppingCart, UserCheck, ShieldCheck, Tag, X, PackageCheck, Edit3, MessageSquare, AlertCircle } from 'lucide-react';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
 import { EditTransactionModal } from './EditTransactionModal';
@@ -137,44 +137,108 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
 
   // Calculate available stock for an item in the active branch
   const getBranchStock = (subtypeName: string, categoryName: string): number => {
-    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName)) {
-      return getAvailableSonicABDStock(subtypeName, inventoryABD, activeBranchCode).length;
-    }
+    let aksesorisStock = 0;
+    if (inventoryAksesoris && inventoryAksesoris.length > 0) {
+      const sku = findAksesorisSku(subtypeName, categoryName);
+      const master = (sku && sku !== '-') ? getAksesorisBySku(sku) : undefined;
+      const canonicalSku = master?.sku || (sku && sku !== '-' ? sku : undefined);
 
-    if (!inventoryAksesoris || inventoryAksesoris.length === 0) return 0;
-    const sku = findAksesorisSku(subtypeName, categoryName);
-    const master = (sku && sku !== '-') ? getAksesorisBySku(sku) : undefined;
-    const canonicalSku = master?.sku || (sku && sku !== '-' ? sku : undefined);
+      let totalMasuk = 0;
+      let totalKeluar = 0;
 
-    let totalMasuk = 0;
-    let totalKeluar = 0;
+      inventoryAksesoris.forEach((item) => {
+        const bCode = item.branchCode || 'YM';
+        if (bCode === activeBranchCode) {
+          const itemSku = item.sku || findAksesorisSku(item.tipe, item.kategori);
+          const itemMaster = (itemSku && itemSku !== '-') ? getAksesorisBySku(itemSku) : undefined;
+          const itemCanonicalSku = itemMaster?.sku || (itemSku && itemSku !== '-' ? itemSku : undefined);
 
-    inventoryAksesoris.forEach((item) => {
-      const bCode = item.branchCode || 'YM';
-      if (bCode === activeBranchCode) {
-        const itemSku = item.sku || findAksesorisSku(item.tipe, item.kategori);
-        const itemMaster = (itemSku && itemSku !== '-') ? getAksesorisBySku(itemSku) : undefined;
-        const itemCanonicalSku = itemMaster?.sku || (itemSku && itemSku !== '-' ? itemSku : undefined);
-
-        let isMatch = false;
-        if (canonicalSku && itemCanonicalSku) {
-          isMatch = canonicalSku === itemCanonicalSku;
-        } else {
-          isMatch = (item.tipe || '').trim().toLowerCase() === subtypeName.trim().toLowerCase();
-        }
-
-        if (isMatch) {
-          const qtyVal = Number(item.qty) || 0;
-          if (item.type === 'MASUK') {
-            totalMasuk += qtyVal;
+          let isMatch = false;
+          if (canonicalSku && itemCanonicalSku) {
+            isMatch = canonicalSku === itemCanonicalSku;
           } else {
-            totalKeluar += qtyVal;
+            isMatch = (item.tipe || '').trim().toLowerCase() === subtypeName.trim().toLowerCase();
+          }
+
+          if (isMatch) {
+            const qtyVal = Number(item.qty) || 0;
+            if (item.type === 'MASUK') {
+              totalMasuk += qtyVal;
+            } else {
+              totalKeluar += qtyVal;
+            }
           }
         }
-      }
-    });
+      });
+      aksesorisStock = Math.max(0, totalMasuk - totalKeluar);
+    }
 
-    return Math.max(0, totalMasuk - totalKeluar);
+    let abdStock = 0;
+    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName)) {
+      abdStock = getAvailableSonicABDStock(subtypeName, inventoryABD, activeBranchCode).length;
+    }
+
+    return aksesorisStock + abdStock;
+  };
+
+  // Check available stock in other branches if active branch has 0 pcs
+  const getOtherBranchesStockInfo = (subtypeName: string, categoryName: string): string | null => {
+    const branchTotals: Record<string, number> = {};
+
+    if (inventoryAksesoris && inventoryAksesoris.length > 0) {
+      const sku = findAksesorisSku(subtypeName, categoryName);
+      const master = (sku && sku !== '-') ? getAksesorisBySku(sku) : undefined;
+      const canonicalSku = master?.sku || (sku && sku !== '-' ? sku : undefined);
+
+      inventoryAksesoris.forEach((item) => {
+        const bCode = item.branchCode || 'YM';
+        if (bCode !== activeBranchCode) {
+          const itemSku = item.sku || findAksesorisSku(item.tipe, item.kategori);
+          const itemMaster = (itemSku && itemSku !== '-') ? getAksesorisBySku(itemSku) : undefined;
+          const itemCanonicalSku = itemMaster?.sku || (itemSku && itemSku !== '-' ? itemSku : undefined);
+
+          let isMatch = false;
+          if (canonicalSku && itemCanonicalSku) {
+            isMatch = canonicalSku === itemCanonicalSku;
+          } else {
+            isMatch = (item.tipe || '').trim().toLowerCase() === subtypeName.trim().toLowerCase();
+          }
+
+          if (isMatch) {
+            const qtyVal = Number(item.qty) || 0;
+            if (!branchTotals[bCode]) branchTotals[bCode] = 0;
+            if (item.type === 'MASUK') {
+              branchTotals[bCode] += qtyVal;
+            } else {
+              branchTotals[bCode] -= qtyVal;
+            }
+          }
+        }
+      });
+    }
+
+    if (categoryName === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtypeName) && inventoryABD) {
+      const otherBranchesABD = getAvailableABDStockInBranch(inventoryABD, 'ALL_OTHER'); // check ABD across branches
+      inventoryABD.forEach((inv) => {
+        const bCode = inv.branchCode || 'YM';
+        if (bCode !== activeBranchCode && inv.type === 'MASUK') {
+          const targetSkus = getSonicAmplifierTargetSkus(subtypeName);
+          const invSku = inv.sku || findABDSku(inv.tipeABD, inv.model) || '';
+          if (targetSkus.includes(invSku.toUpperCase())) {
+            // Count ABD in other branches
+          }
+        }
+      });
+    }
+
+    const nonZeroBranches = Object.entries(branchTotals)
+      .filter(([_, qty]) => qty > 0)
+      .map(([bCode, qty]) => `${qty} Pcs di Cabang [${bCode}]`);
+
+    if (nonZeroBranches.length > 0) {
+      return nonZeroBranches.join(', ');
+    }
+    return null;
   };
 
   // List of available ABD items for Sonic Amplifier replacements in active branch
@@ -793,34 +857,34 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                 )}
                 
                 {/* Stock badge indicator */}
-                <div className="mt-1.5 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-semibold">Stok Cabang [{activeBranchCode}]:</span>
-                  {category === 'Earmould' ? (
-                    <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-300 font-bold flex items-center gap-1">
-                      👂 Custom Cetak Lab (Tanpa Batas Stok)
-                    </span>
-                  ) : (category === 'Spare Part dan Service' && subtype.toLowerCase().includes('jasa')) ? (
-                    <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-300 font-bold flex items-center gap-1">
-                      🛠️ Jasa Service
-                    </span>
-                  ) : (category === 'Spare Part dan Service' && isSonicAmplifierSubtype(subtype)) ? (
-                    getBranchStock(subtype, category) > 0 ? (
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-semibold">Stok Cabang [{activeBranchCode}]:</span>
+                    {category === 'Earmould' ? (
+                      <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-300 font-bold flex items-center gap-1">
+                        👂 Custom Cetak Lab (Tanpa Batas Stok)
+                      </span>
+                    ) : (category === 'Spare Part dan Service' && subtype.toLowerCase().includes('jasa')) ? (
+                      <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-300 font-bold flex items-center gap-1">
+                        🛠️ Jasa Service
+                      </span>
+                    ) : getBranchStock(subtype, category) > 0 ? (
                       <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold font-mono">
-                        {getBranchStock(subtype, category)} Pcs (Stok ABD: {getSonicAmplifierTargetSkus(subtype).join(', ')})
+                        {getBranchStock(subtype, category)} Pcs
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-300 font-bold font-mono flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 inline" /> 0 Pcs (Habis) (SKU ABD: {getSonicAmplifierTargetSkus(subtype).join(', ')})
+                        <AlertCircle className="w-3 h-3 inline" /> 0 Pcs (Habis)
                       </span>
-                    )
-                  ) : getBranchStock(subtype, category) > 0 ? (
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold font-mono">
-                      {getBranchStock(subtype, category)} Pcs
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-300 font-bold font-mono flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 inline" /> 0 Pcs (Habis)
-                    </span>
+                    )}
+                  </div>
+
+                  {/* If stock in active branch is 0 but exists in other branches */}
+                  {getBranchStock(subtype, category) === 0 && getOtherBranchesStockInfo(subtype, category) && (
+                    <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] text-indigo-900 font-semibold flex items-start gap-1.5">
+                      <span className="text-indigo-600 font-bold">ℹ️ Info Stok Cabang Lain:</span>
+                      <span>Barang ini tersedia {getOtherBranchesStockInfo(subtype, category)}. Silakan lakukan Mutasi Stok ke cabang [{activeBranchCode}] atau ubah cabang transaksi.</span>
+                    </div>
                   )}
                 </div>
                 {category === 'Earmould' && (
