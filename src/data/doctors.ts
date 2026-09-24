@@ -12,6 +12,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Eka Siloe, Sp.THT (JB)',
   'dr. Esmaralda Nurul Amany, Sp.THT (JB)',
   'dr. Havis Ramli, Sp.THT (JB)',
+  'dr. Herdiansyah Sp.THT (JB)',
   'dr. Lusiana Herawati Yammin,Sp.THT (JB)',
   'dr. M Fachreza Saputra, Sp.THT (JB)',
   'dr. Mohd.Redza Qurniawan, Sp.THT (JB)',
@@ -76,6 +77,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. M. Taufiq Ishaq, Sp.THT (SU)',
   'dr. Maesyara Adinda Sari, Sp.THT (SU)',
   'dr. Magdalena Hutagalung, Sp.THT (SU)',
+  'dr. Marojahan Pandiangan Sp.THT-KL (SU)',
   'dr. Marwan Moeharman, Sp.THT (SU)',
   'dr. Melania, Sp.THT (SU)',
   'dr. Melinda Soesilorini, Sp.THT (SU)',
@@ -173,6 +175,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Tengku Siti Hajar Haryuna, Sp.THT (SU)',
   'dr. Silvia, SpTHT (SU)',
   'dr. Sweet C.Marpaung Sp.THT-KL',
+  'dr. Fatahillah Sp.THT',
 
   // --- Wilayah AC (Aceh) ---
   'dr. Gilbran,Sp.THT (AC)',
@@ -258,6 +261,15 @@ export const matchOfficialDoctorName = (raw: string | undefined | null): string 
   const lower = cleaned.toLowerCase();
 
   // Direct keyword mappings for common shorthand names
+  if (lower.includes('marojahan') || lower.includes('pandiangan')) {
+    return 'dr. Marojahan Pandiangan Sp.THT-KL (SU)';
+  }
+  if (lower.includes('fatahillah')) {
+    return 'dr. Fatahillah Sp.THT';
+  }
+  if (lower.includes('herdiansyah')) {
+    return 'dr. Herdiansyah Sp.THT (JB)';
+  }
   if (lower.includes('sweet')) {
     return 'dr. Sweet C.Marpaung Sp.THT-KL';
   }

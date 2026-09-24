@@ -448,6 +448,17 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
       const hargaSatuan = cleanMoney(getCol(colIdx.hargaSatuan) || getCol(12));
       let totalBayar = cleanMoney(getCol(colIdx.totalBayar) || getCol(13));
       if (!totalBayar && hargaSatuan) totalBayar = hargaSatuan * qty;
+      if (caseType === 'Jasa Periksa' && (!totalBayar || totalBayar === 0)) {
+        const itemLower = (transaksiItem || '').toLowerCase();
+        if (itemLower.includes('bera')) totalBayar = 1300000;
+        else if (itemLower.includes('oae')) totalBayar = 200000;
+        else if (itemLower.includes('tympanometri') || itemLower.includes('tympanometry')) totalBayar = 100000;
+        else if (itemLower.includes('play')) totalBayar = 100000;
+        else if (itemLower.includes('nada murni')) totalBayar = 100000;
+        else if (itemLower.includes('fft')) totalBayar = 100000;
+        else if (itemLower.includes('audiometri')) totalBayar = 50000;
+        else totalBayar = 50000;
+      }
 
       const pembayaran = getCol(colIdx.pembayaran) || getCol(14) || 'Cash';
       const ref = getCol(colIdx.ref) || getCol(15) || 'Plang Toko, Neonbox, Google Maps / Walk-in';
@@ -594,6 +605,7 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
 
       // Save Transaction based on caseType
       if (row.caseType === 'Jasa Periksa') {
+        const nominalJasa = row.totalBayar > 0 ? row.totalBayar : 50000;
         const tx: JasaPeriksaTransaction = {
           id: `KWT-${targetBranch}-IMP-${Date.now()}-${Math.floor(Math.random() * 899 + 100)}`,
           tanggal: row.tanggal,
@@ -602,12 +614,16 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
           namaCustomer: row.namaPasien,
           nomorKwitansi: `KWT-${targetBranch}-IMP-${Math.floor(Math.random() * 8999 + 1000)}`,
           jenisPemeriksaan: [row.transaksiItem as any || 'Audiometri'],
-          biayaJasaPeriksa: row.totalBayar,
+          subtotalBiaya: nominalJasa,
+          biayaJasaPeriksa: nominalJasa,
           resultKananDb: row.audKananDb ? `${row.audKananDb} dB` : undefined,
           resultKiriDb: row.audKiriDb ? `${row.audKiriDb} dB` : undefined,
           catatanHasil: row.hasilPemeriksaan ? `Hasil Pemeriksaan: ${row.hasilPemeriksaan}` : undefined,
           audiometris: row.hac || 'HAC',
-          payment,
+          payment: {
+            ...payment,
+            nominalTotal: nominalJasa
+          },
           branchCode: targetBranch,
           staffUser: row.hac || 'Import System'
         };

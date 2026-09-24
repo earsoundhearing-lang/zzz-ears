@@ -417,6 +417,73 @@ export const sanitizePatientRecord = (rawP: Patient): Patient => {
   return p;
 };
 
+// Single-item Jasa Periksa sanitizer ensuring nominal / biayaJasaPeriksa is always accurately populated
+export const sanitizeJasaPeriksaRecord = (rawJ: JasaPeriksaTransaction): JasaPeriksaTransaction => {
+  if (!rawJ) return rawJ;
+  const j = { ...rawJ };
+
+  // Calculate or fix missing/zero biayaJasaPeriksa
+  let nominal = Number(j.biayaJasaPeriksa || 0);
+  if (nominal <= 0 && typeof (j as any).jumlah === 'number' && (j as any).jumlah > 0) {
+    nominal = (j as any).jumlah;
+  }
+  if (nominal <= 0 && typeof j.subtotalBiaya === 'number' && j.subtotalBiaya > 0) {
+    nominal = j.subtotalBiaya;
+  }
+  if (nominal <= 0 && typeof j.payment?.nominalTotal === 'number' && j.payment.nominalTotal > 0) {
+    nominal = j.payment.nominalTotal;
+  }
+  if (nominal <= 0) {
+    const cash = Number(j.payment?.cashAmount || 0);
+    const trf = Number(j.payment?.transferAmount || 0);
+    if (cash + trf > 0) {
+      nominal = cash + trf;
+    }
+  }
+
+  // If still 0 or empty, derive from standard examination tariffs
+  if (nominal <= 0) {
+    const exams = Array.isArray(j.jenisPemeriksaan) 
+      ? j.jenisPemeriksaan 
+      : (j.jenisPemeriksaan ? [j.jenisPemeriksaan] : []);
+    
+    let calculated = 0;
+    exams.forEach(ex => {
+      if (!ex) return;
+      const str = String(ex).toLowerCase();
+      if (str.includes('bera')) calculated += 1300000;
+      else if (str.includes('oae')) calculated += 200000;
+      else if (str.includes('tympanometri') || str.includes('tympanometry')) calculated += 100000;
+      else if (str.includes('play')) calculated += 100000;
+      else if (str.includes('nada murni')) calculated += 100000;
+      else if (str.includes('fft') || str.includes('free field')) calculated += 100000;
+      else if (str.includes('audiometri')) calculated += 50000;
+      else calculated += 50000;
+    });
+    nominal = calculated > 0 ? calculated : 50000;
+  }
+
+  j.biayaJasaPeriksa = nominal;
+  j.subtotalBiaya = j.subtotalBiaya || nominal;
+  (j as any).jumlah = nominal;
+
+  if (j.payment) {
+    if (!j.payment.nominalTotal || j.payment.nominalTotal <= 0) {
+      j.payment.nominalTotal = nominal;
+    }
+  }
+
+  // Normalize doctor name if present
+  if (j.namaDokterReferal && j.namaDokterReferal.trim()) {
+    const matched = matchOfficialDoctorName(j.namaDokterReferal);
+    if (matched) {
+      j.namaDokterReferal = matched;
+    }
+  }
+
+  return j;
+};
+
 // Helper to sanitize duplicate patient records by name & clean invalid birthdates/ages
 const deduplicatePatientsList = (list: Patient[]): Patient[] => {
   if (!Array.isArray(list) || list.length === 0) return list;

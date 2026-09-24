@@ -57,6 +57,7 @@ export interface PaymentDetails {
   cashAmount?: number;
   transferAmount?: number;
   splitBsiAccount?: BsiAccount;
+  nominalTotal?: number;
 }
 
 export type LoyaltyTier = 'Reguler' | 'Silver' | 'Gold' | 'Platinum' | 'VIP';

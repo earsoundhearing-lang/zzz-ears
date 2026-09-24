@@ -7,7 +7,8 @@ import {
   ABDInventoryEntry, AksesorisInventoryEntry, CRMNote
 } from '../types';
 
-import { sanitizePatientRecord } from '../utils/storage';
+import { sanitizePatientRecord, sanitizeJasaPeriksaRecord } from '../utils/storage';
+import { backfillZeroJasaPeriksaInFirestore } from '../services/dbOperations';
 
 export function useFirestoreCollections() {
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -68,12 +69,12 @@ export function useFirestoreCollections() {
       };
 
       unsubs.push(onSnapshot(collection(db, 'jasa_periksa'), (snap) => {
-        primaryJasa = snap.docs.map(d => d.data() as JasaPeriksaTransaction);
+        primaryJasa = snap.docs.map(d => sanitizeJasaPeriksaRecord(d.data() as JasaPeriksaTransaction));
         updateJasa();
       }, err => console.error("jasa_periksa sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'jasaPeriksa'), (snap) => {
-        legacyJasa = snap.docs.map(d => d.data() as JasaPeriksaTransaction);
+        legacyJasa = snap.docs.map(d => sanitizeJasaPeriksaRecord(d.data() as JasaPeriksaTransaction));
         updateJasa();
       }, err => console.error("jasaPeriksa legacy sync error:", err)));
 
@@ -115,6 +116,9 @@ export function useFirestoreCollections() {
         if (isMounted) setCrmNotes(snap.docs.map(d => d.data() as CRMNote));
       }, err => console.error("crm_notes sync error:", err)));
       
+      // Background backfill for any historical records with Rp 0
+      backfillZeroJasaPeriksaInFirestore();
+
       setLoading(false);
     } catch (err: any) {
       if (isMounted) {

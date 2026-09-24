@@ -9,6 +9,7 @@ import {
   ReferalSource 
 } from '../../types';
 import { formatRupiah, formatIndoDate } from '../../utils/formatters';
+import { matchOfficialDoctorName } from '../../data/doctors';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -201,13 +202,14 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
         pData = { spending: 0, txCount: 0, txList: [] };
         patientTxMap.set(pId, pData);
       }
-      pData.spending += Number(a.jumlah || 0);
+      const aAmount = Number(a.jumlah || a.hargaJual || ((a.payment?.cashAmount || 0) + (a.payment?.transferAmount || 0)) || 0);
+      pData.spending += aAmount;
       pData.txCount += 1;
       pData.txList.push({
         type: 'ABD',
         fakturOrId: a.nomorFakturPenjualan || a.id,
         date: a.tanggal,
-        amount: Number(a.jumlah || 0),
+        amount: aAmount,
         label: `Alat Bantu Dengar: ${a.tipeABD || ''} (${a.fittingType || ''})`,
         branchCode: a.branchCode,
       });
@@ -218,17 +220,56 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
       const pId = j.idPelanggan;
       let pData = patientTxMap.get(pId);
       if (!pData) {
+        const foundP = patients.find(p => p.id === pId || (p.nama && j.namaCustomer && p.nama.trim().toLowerCase() === j.namaCustomer.trim().toLowerCase()));
+        if (foundP) {
+          pData = patientTxMap.get(foundP.id);
+        }
+      }
+      if (!pData) {
         pData = { spending: 0, txCount: 0, txList: [] };
         patientTxMap.set(pId, pData);
       }
-      pData.spending += Number(j.jumlah || 0);
+
+      // Calculate the real examination nominal
+      let jAmount = Number(
+        j.biayaJasaPeriksa ||
+        (j as any).jumlah ||
+        j.subtotalBiaya ||
+        j.payment?.nominalTotal ||
+        ((j.payment?.cashAmount || 0) + (j.payment?.transferAmount || 0)) ||
+        0
+      );
+
+      // If still 0 or unrecorded, calculate from standard examination tariffs
+      if (jAmount <= 0) {
+        const exams = Array.isArray(j.jenisPemeriksaan) ? j.jenisPemeriksaan : (j.jenisPemeriksaan ? [j.jenisPemeriksaan] : []);
+        let calc = 0;
+        exams.forEach(ex => {
+          if (!ex) return;
+          const s = String(ex).toLowerCase();
+          if (s.includes('bera')) calc += 1300000;
+          else if (s.includes('oae')) calc += 200000;
+          else if (s.includes('tympanometri') || s.includes('tympanometry')) calc += 100000;
+          else if (s.includes('play')) calc += 100000;
+          else if (s.includes('nada murni')) calc += 100000;
+          else if (s.includes('fft')) calc += 100000;
+          else if (s.includes('audiometri')) calc += 50000;
+          else calc += 50000;
+        });
+        jAmount = calc > 0 ? calc : 50000;
+      }
+
+      const faktur = (j as any).nomorFaktur || j.nomorKwitansi || j.id;
+      const examNames = Array.isArray(j.jenisPemeriksaan) ? j.jenisPemeriksaan.join(', ') : (j.jenisPemeriksaan || 'Jasa Pemeriksaan');
+
+      pData.spending += jAmount;
       pData.txCount += 1;
       pData.txList.push({
         type: 'Jasa',
-        fakturOrId: j.nomorFaktur || j.id,
+        fakturOrId: faktur,
         date: j.tanggal,
-        amount: Number(j.jumlah || 0),
-        label: `Pemeriksaan: ${j.jenisPemeriksaan || ''}`,
+        amount: jAmount,
+        label: `Pemeriksaan: ${examNames}`,
         branchCode: j.branchCode,
       });
     });
@@ -241,13 +282,14 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
         pData = { spending: 0, txCount: 0, txList: [] };
         patientTxMap.set(pId, pData);
       }
-      pData.spending += Number(aks.jumlah || 0);
+      const aksAmount = Number(aks.jumlah || ((aks.payment?.cashAmount || 0) + (aks.payment?.transferAmount || 0)) || 0);
+      pData.spending += aksAmount;
       pData.txCount += 1;
       pData.txList.push({
         type: 'Aksesoris',
         fakturOrId: aks.nomorFaktur || aks.id,
         date: aks.tanggal,
-        amount: Number(aks.jumlah || 0),
+        amount: aksAmount,
         label: `Aksesoris: ${aks.category || ''} (${aks.subtype || ''})`,
         branchCode: aks.branchCode,
       });
@@ -255,11 +297,41 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
 
     // Helper to categorize and normalize channel key
     const categorizeReferal = (p: Patient) => {
-      const ref = p.referal || 'Lain-lain';
-      const channel = p.referalChannel || '';
-      const doctor = p.namaDokter?.trim() || '';
-      const rs = p.namaRS?.trim() || '';
-      const cat = p.referalCategory;
+      let ref = p.referal || 'Lain-lain';
+      let channel = p.referalChannel || '';
+      let doctor = p.namaDokter?.trim() || '';
+      let rs = p.namaRS?.trim() || '';
+      let cat = p.referalCategory;
+
+      // Check if patient's transactions have doctor/referral info if missing in patient profile
+      if (!doctor && !rs) {
+        const matchingJasa = jasaPeriksa.find(j => 
+          (j.idPelanggan === p.id || (j.namaCustomer && j.namaCustomer.trim().toLowerCase() === p.nama?.trim().toLowerCase())) &&
+          (j.namaDokterReferal || j.referal)
+        );
+        if (matchingJasa?.namaDokterReferal) {
+          doctor = matchingJasa.namaDokterReferal.trim();
+          cat = 'Dokter & Faskes';
+          ref = matchingJasa.referal || 'Dokter Umum dan Dokter Spesialis';
+        }
+        if (!doctor) {
+          const matchingABD = abd.find(a => 
+            (a.idPelanggan === p.id || (a.namaPasien && a.namaPasien.trim().toLowerCase() === p.nama?.trim().toLowerCase())) &&
+            (a.namaDokterReferal || a.referal)
+          );
+          if (matchingABD?.namaDokterReferal) {
+            doctor = matchingABD.namaDokterReferal.trim();
+            cat = 'Dokter & Faskes';
+            ref = matchingABD.referal || 'Dokter Umum dan Dokter Spesialis';
+          }
+        }
+      }
+
+      // Check if doctor name should be normalized with official doctor list
+      if (doctor) {
+        const matched = matchOfficialDoctorName(doctor);
+        if (matched) doctor = matched;
+      }
 
       // 1. Dokter & Rumah Sakit
       if (cat === 'Dokter & Faskes' || ref === 'Dokter Umum dan Dokter Spesialis' || ref === 'RS/LAB/KLINIK' || doctor !== '' || rs !== '') {
@@ -337,11 +409,55 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
       };
     };
 
+    // Synthesize patients from transactions if not present in patients list
+    const patientMasterMap = new Map<string, Patient>();
+    patients.forEach(p => patientMasterMap.set(p.id, p));
+
+    jasaPeriksa.forEach(j => {
+      if (j.idPelanggan && !patientMasterMap.has(j.idPelanggan)) {
+        patientMasterMap.set(j.idPelanggan, {
+          id: j.idPelanggan,
+          nama: j.namaCustomer || 'Pasien Periksa',
+          telepon: '-',
+          alamat: { jalanNo: '-', kecamatan: '-', kabupatenKota: '-', provinsi: '-' },
+          referal: j.referal || (j.namaDokterReferal ? 'Dokter Umum dan Dokter Spesialis' : 'Lain-lain'),
+          namaDokter: j.namaDokterReferal ? matchOfficialDoctorName(j.namaDokterReferal) || j.namaDokterReferal : undefined,
+          referalCategory: j.namaDokterReferal ? 'Dokter & Faskes' : undefined,
+          createdAt: j.tanggal,
+          branchCode: j.branchCode,
+          usia: 0,
+          gender: 'L',
+          tanggalLahir: '',
+        });
+      }
+    });
+
+    abd.forEach(a => {
+      if (a.idPelanggan && !patientMasterMap.has(a.idPelanggan)) {
+        patientMasterMap.set(a.idPelanggan, {
+          id: a.idPelanggan,
+          nama: a.namaPasien || 'Pasien ABD',
+          telepon: '-',
+          alamat: { jalanNo: '-', kecamatan: '-', kabupatenKota: '-', provinsi: '-' },
+          referal: a.referal || (a.namaDokterReferal ? 'Dokter Umum dan Dokter Spesialis' : 'Lain-lain'),
+          namaDokter: a.namaDokterReferal ? matchOfficialDoctorName(a.namaDokterReferal) || a.namaDokterReferal : undefined,
+          referalCategory: a.namaDokterReferal ? 'Dokter & Faskes' : undefined,
+          createdAt: a.tanggal,
+          branchCode: a.branchCode,
+          usia: 0,
+          gender: 'L',
+          tanggalLahir: '',
+        });
+      }
+    });
+
+    const combinedPatients = Array.from(patientMasterMap.values());
+
     // Channels Map
     const channelsMap: { [key: string]: ChannelDetailItem } = {};
 
-    // Group patients into channels
-    patients.forEach(p => {
+    // Group combined patients into channels
+    combinedPatients.forEach(p => {
       // If month filter is applied to patient registration date
       const patientMonthMatch = selectedMonthFilter === 'ALL' || (p.createdAt && p.createdAt.startsWith(selectedMonthFilter));
       

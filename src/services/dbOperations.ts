@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { Patient, AksesorisTransaction, ABDInventoryEntry, AksesorisInventoryEntry, JasaPeriksaTransaction, 
   ABDTransaction, EarmouldReport, ReparasiService, KasKecilEntry, AppUser, CRMNote 
 } from '../types';
+import { sanitizePatientRecord, sanitizeJasaPeriksaRecord } from '../utils/storage';
 
 export const isJanuaryDate = (dateStr: string | undefined | null): boolean => {
   if (!dateStr || typeof dateStr !== 'string') return false;
@@ -218,7 +219,7 @@ export const dbOps = {
   deleteUser: (id: string) => withAlert(deleteDoc(doc(db, 'users', id))),
 
   // Patients
-  savePatient: (patient: Patient) => withAlert(setDoc(doc(db, 'patients', patient.id), sanitize(patient))),
+  savePatient: (patient: Patient) => withAlert(setDoc(doc(db, 'patients', patient.id), sanitize(sanitizePatientRecord(patient)))),
   deletePatient: (id: string) => withAlert(deleteDoc(doc(db, 'patients', id))),
 
   // Aksesoris
@@ -226,7 +227,7 @@ export const dbOps = {
   deleteAksesoris: (id: string) => withAlert(deleteDoc(doc(db, 'aksesoris', id))),
 
   // Jasa Periksa
-  saveJasaPeriksa: (tx: JasaPeriksaTransaction) => withAlert(setDoc(doc(db, 'jasa_periksa', tx.id), sanitize(tx))),
+  saveJasaPeriksa: (tx: JasaPeriksaTransaction) => withAlert(setDoc(doc(db, 'jasa_periksa', tx.id), sanitize(sanitizeJasaPeriksaRecord(tx)))),
   deleteJasaPeriksa: (id: string) => withAlert(deleteDoc(doc(db, 'jasa_periksa', id))),
 
   // ABD
@@ -259,4 +260,22 @@ export const inventoryDbOps = {
   // Inventory Aksesoris
   saveInventoryAksesoris: (entry: AksesorisInventoryEntry) => withAlert(setDoc(doc(db, 'inventoryAksesoris', entry.id), sanitize(entry))),
   deleteInventoryAksesoris: (id: string) => withAlert(deleteDoc(doc(db, 'inventoryAksesoris', id))),
+};
+
+// Automatic one-time background backfill for any legacy Jasa Periksa records with Rp 0
+export const backfillZeroJasaPeriksaInFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'jasa_periksa'));
+    for (const d of snap.docs) {
+      const data = d.data() as JasaPeriksaTransaction;
+      if (!data.biayaJasaPeriksa || data.biayaJasaPeriksa <= 0) {
+        const sanitized = sanitizeJasaPeriksaRecord(data);
+        if (sanitized.biayaJasaPeriksa > 0) {
+          await setDoc(doc(db, 'jasa_periksa', d.id), sanitize(sanitized), { merge: true });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Backfill jasa_periksa note:", err);
+  }
 };
