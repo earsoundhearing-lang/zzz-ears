@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { getTodayDateString, calculateAge } from './formatters';
 import { matchOfficialDoctorName } from '../data/doctors';
+import { normalizeABDTipe, normalizeAksesorisProduct } from './productNormalizer';
 import { 
   INITIAL_PATIENTS, 
   INITIAL_AKSESORIS, 
@@ -484,6 +485,44 @@ export const sanitizeJasaPeriksaRecord = (rawJ: JasaPeriksaTransaction): JasaPer
   return j;
 };
 
+// Single-item Aksesoris sanitizer ensuring product category & subtype are canonical
+export const sanitizeAksesorisRecord = (rawAcc: AksesorisTransaction): AksesorisTransaction => {
+  if (!rawAcc) return rawAcc;
+  const acc = { ...rawAcc };
+
+  const norm = normalizeAksesorisProduct(acc.category, acc.subtype);
+  acc.category = norm.category as any;
+  acc.subtype = norm.subtype as any;
+
+  if (Array.isArray(acc.items) && acc.items.length > 0) {
+    acc.items = acc.items.map(item => {
+      const itemNorm = normalizeAksesorisProduct(item.category, item.subtype);
+      return {
+        ...item,
+        category: itemNorm.category as any,
+        subtype: itemNorm.subtype,
+      };
+    });
+  }
+
+  return acc;
+};
+
+// Single-item ABD sanitizer ensuring tipeABD and tipeABD2 are canonical (e.g. FAST P = signia fast P)
+export const sanitizeABDRecord = (rawABD: ABDTransaction): ABDTransaction => {
+  if (!rawABD) return rawABD;
+  const abd = { ...rawABD };
+
+  if (abd.tipeABD) {
+    abd.tipeABD = normalizeABDTipe(abd.tipeABD);
+  }
+  if (abd.tipeABD2) {
+    abd.tipeABD2 = normalizeABDTipe(abd.tipeABD2);
+  }
+
+  return abd;
+};
+
 // Helper to sanitize duplicate patient records by name & clean invalid birthdates/ages
 const deduplicatePatientsList = (list: Patient[]): Patient[] => {
   if (!Array.isArray(list) || list.length === 0) return list;
@@ -593,23 +632,23 @@ const sanitizeImportedList = <T extends { id: string; tanggal?: string; nomorKwi
 // Aksesoris
 export const getAksesoris = (): AksesorisTransaction[] => {
   const data = getFromStorage(KEYS.AKSESORIS, INITIAL_AKSESORIS);
-  return sanitizeImportedList(data, KEYS.AKSESORIS);
+  return sanitizeImportedList(data, KEYS.AKSESORIS).map(sanitizeAksesorisRecord);
 };
-export const saveAksesoris = (data: AksesorisTransaction[]) => setToStorage(KEYS.AKSESORIS, data);
+export const saveAksesoris = (data: AksesorisTransaction[]) => setToStorage(KEYS.AKSESORIS, data.map(sanitizeAksesorisRecord));
 
 // Jasa Periksa
 export const getJasaPeriksa = (): JasaPeriksaTransaction[] => {
   const data = getFromStorage(KEYS.JASA_PERIKSA, INITIAL_JASA_PERIKSA);
-  return sanitizeImportedList(data, KEYS.JASA_PERIKSA);
+  return sanitizeImportedList(data, KEYS.JASA_PERIKSA).map(sanitizeJasaPeriksaRecord);
 };
-export const saveJasaPeriksa = (data: JasaPeriksaTransaction[]) => setToStorage(KEYS.JASA_PERIKSA, data);
+export const saveJasaPeriksa = (data: JasaPeriksaTransaction[]) => setToStorage(KEYS.JASA_PERIKSA, data.map(sanitizeJasaPeriksaRecord));
 
 // ABD
 export const getABD = (): ABDTransaction[] => {
   const data = getFromStorage(KEYS.ABD, INITIAL_ABD);
-  return sanitizeImportedList(data, KEYS.ABD);
+  return sanitizeImportedList(data, KEYS.ABD).map(sanitizeABDRecord);
 };
-export const saveABD = (data: ABDTransaction[]) => setToStorage(KEYS.ABD, data);
+export const saveABD = (data: ABDTransaction[]) => setToStorage(KEYS.ABD, data.map(sanitizeABDRecord));
 
 // Earmould
 export const getEarmould = (): EarmouldReport[] => {

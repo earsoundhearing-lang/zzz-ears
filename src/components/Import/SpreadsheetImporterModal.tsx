@@ -11,6 +11,7 @@ import {
 import { BRANCHES, getDefaultBsiAccount } from '../../utils/branches';
 import { getTodayDateString, calculateAge } from '../../utils/formatters';
 import { matchOfficialDoctorName } from '../../data/doctors';
+import { normalizeABDTipe, normalizeAksesorisProduct } from '../../utils/productNormalizer';
 
 interface SpreadsheetImporterModalProps {
   isOpen: boolean;
@@ -630,6 +631,7 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
         onSaveJasaPeriksa(tx);
         jasaCount++;
       } else if (row.caseType === 'Fitting ABD') {
+        const canonicalTipe = normalizeABDTipe(row.transaksiItem) || row.transaksiItem;
         const tx: ABDTransaction = {
           id: `ABD-${targetBranch}-IMP-${Date.now()}-${Math.floor(Math.random() * 899 + 100)}`,
           tanggal: row.tanggal,
@@ -637,7 +639,7 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
           gelar: row.gelar,
           namaPasien: row.namaPasien,
           hac: row.hac || 'HAC',
-          tipeABD: row.transaksiItem,
+          tipeABD: canonicalTipe,
           nomorSeriABD: row.noSeri || `SN-IMP-${Date.now()}`,
           fittingType: 'Monoaural (Kanan)',
           nomorFakturPenjualan: `INV-${targetBranch}-IMP-${Math.floor(Math.random() * 8999 + 1000)}`,
@@ -652,14 +654,15 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
         onSaveABD(tx);
         abdCount++;
       } else if (row.caseType === 'Aksesoris') {
+        const normAcc = normalizeAksesorisProduct('Aksesoris ABD', row.transaksiItem);
         const tx: AksesorisTransaction = {
           id: `INV-${targetBranch}-IMP-${Date.now()}-${Math.floor(Math.random() * 899 + 100)}`,
           tanggal: row.tanggal,
           idPelanggan: patientId,
           gelar: row.gelar,
           namaCustomer: row.namaPasien,
-          category: 'Aksesoris ABD',
-          subtype: row.transaksiItem,
+          category: normAcc.category as any,
+          subtype: normAcc.subtype,
           qty: row.qty,
           nomorFaktur: `INV-${targetBranch}-IMP-${Math.floor(Math.random() * 8999 + 1000)}`,
           hargaJual: row.hargaSatuan || row.totalBayar,

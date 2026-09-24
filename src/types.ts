@@ -155,6 +155,15 @@ export type AksesorisTypeCategory =
 export type EarmouldSide = 'Kanan' | 'Kiri' | 'Keduanya (Binaural)';
 
 export type BateraiSubtype = 
+  | 'Baterai 13 Sonic'
+  | 'Baterai 675 Sonic'
+  | 'Baterai 312 Sonic'
+  | 'Baterai 10 Sonic'
+  | 'Baterai 13 Powerone'
+  | 'Baterai 675 Powerone'
+  | 'Baterai 312 Powerone'
+  | 'Baterai 10 Powerone'
+  | '312 RAYOVAC'
   | '13 Sonic'
   | '675 Sonic'
   | '312 Sonic'
@@ -163,7 +172,8 @@ export type BateraiSubtype =
   | '675 Powerone'
   | '312 Powerone'
   | '10 Powerone'
-  | 'Tipe lain';
+  | 'Tipe lain'
+  | string;
 
 export type AidtipSubtype = 
   | 'Size M'

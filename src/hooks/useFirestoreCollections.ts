@@ -7,7 +7,7 @@ import {
   ABDInventoryEntry, AksesorisInventoryEntry, CRMNote
 } from '../types';
 
-import { sanitizePatientRecord, sanitizeJasaPeriksaRecord } from '../utils/storage';
+import { sanitizePatientRecord, sanitizeJasaPeriksaRecord, sanitizeAksesorisRecord, sanitizeABDRecord } from '../utils/storage';
 import { backfillZeroJasaPeriksaInFirestore } from '../services/dbOperations';
 
 export function useFirestoreCollections() {
@@ -54,7 +54,7 @@ export function useFirestoreCollections() {
       }, err => console.error("patients sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'aksesoris'), (snap) => {
-        if (isMounted) setAksesoris(snap.docs.map(d => d.data() as AksesorisTransaction));
+        if (isMounted) setAksesoris(snap.docs.map(d => sanitizeAksesorisRecord(d.data() as AksesorisTransaction)));
       }, err => console.error("aksesoris sync error:", err)));
 
       // Listen to both 'jasa_periksa' (standard) and 'jasaPeriksa' (legacy fallback)
@@ -79,7 +79,7 @@ export function useFirestoreCollections() {
       }, err => console.error("jasaPeriksa legacy sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'abd'), (snap) => {
-        if (isMounted) setABD(snap.docs.map(d => d.data() as ABDTransaction));
+        if (isMounted) setABD(snap.docs.map(d => sanitizeABDRecord(d.data() as ABDTransaction)));
       }, err => console.error("abd sync error:", err)));
 
       unsubs.push(onSnapshot(collection(db, 'earmould'), (snap) => {

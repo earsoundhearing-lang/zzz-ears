@@ -3,6 +3,7 @@ import { AksesorisTransaction, ABDTransaction } from '../../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { ShoppingBag } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatters';
+import { normalizeABDTipe, normalizeAksesorisProduct } from '../../utils/productNormalizer';
 
 interface ProductSalesBreakdownSectionProps {
   aksesoris: AksesorisTransaction[];
@@ -23,30 +24,50 @@ export const ProductSalesBreakdownSection: React.FC<ProductSalesBreakdownSection
 
     // Aggregate ABD
     abd.forEach((a) => {
-      const name = a.tipeABD || 'Hearing Aid ABD';
-      if (!map[name]) {
-        map[name] = { name, category: 'Alat Bantu Dengar', qty: 0, value: 0 };
+      const canonicalTipe = normalizeABDTipe(a.tipeABD) || 'Hearing Aid ABD';
+      const isBinaural = a.fittingType === 'Binaural';
+      const tipe2 = a.tipeABD2 ? normalizeABDTipe(a.tipeABD2) : undefined;
+
+      // Handle split binaural if unit 1 and unit 2 are different models
+      if (isBinaural && tipe2 && tipe2 !== canonicalTipe) {
+        if (!map[canonicalTipe]) {
+          map[canonicalTipe] = { name: canonicalTipe, category: 'Alat Bantu Dengar', qty: 0, value: 0 };
+        }
+        map[canonicalTipe].qty += 1;
+        map[canonicalTipe].value += Math.round((a.jumlah || 0) / 2);
+
+        if (!map[tipe2]) {
+          map[tipe2] = { name: tipe2, category: 'Alat Bantu Dengar', qty: 0, value: 0 };
+        }
+        map[tipe2].qty += 1;
+        map[tipe2].value += Math.round((a.jumlah || 0) / 2);
+      } else {
+        if (!map[canonicalTipe]) {
+          map[canonicalTipe] = { name: canonicalTipe, category: 'Alat Bantu Dengar', qty: 0, value: 0 };
+        }
+        const qty = isBinaural ? 2 : 1;
+        map[canonicalTipe].qty += qty;
+        map[canonicalTipe].value += (a.jumlah || 0);
       }
-      const qty = a.fittingType === 'Binaural' ? 2 : 1;
-      map[name].qty += qty;
-      map[name].value += (a.jumlah || 0);
     });
 
-    // Aggregate Aksesoris
+    // Aggregate Aksesoris & Baterai
     aksesoris.forEach((acc) => {
       if (acc.items && acc.items.length > 0) {
         acc.items.forEach((item) => {
-          const name = `${item.category} (${item.subtype || 'Std'})`;
+          const norm = normalizeAksesorisProduct(item.category, item.subtype);
+          const name = norm.displayName;
           if (!map[name]) {
-            map[name] = { name, category: item.category, qty: 0, value: 0 };
+            map[name] = { name, category: norm.category, qty: 0, value: 0 };
           }
           map[name].qty += (item.qty || 1);
           map[name].value += (item.subtotal || 0);
         });
       } else {
-        const name = `${acc.category} (${acc.subtype || 'Std'})`;
+        const norm = normalizeAksesorisProduct(acc.category, acc.subtype);
+        const name = norm.displayName;
         if (!map[name]) {
-          map[name] = { name, category: acc.category, qty: 0, value: 0 };
+          map[name] = { name, category: norm.category, qty: 0, value: 0 };
         }
         map[name].qty += (acc.qty || 1);
         map[name].value += (acc.jumlah || 0);

@@ -322,7 +322,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     setNoSeri('');
     if (newCat === 'Baterai Alat Bantu Dengar') {
       const defaultItem = BATERAI_SUBTYPES[0];
-      setSubtype(defaultItem ? defaultItem.nama : '13 Sonic');
+      setSubtype(defaultItem ? defaultItem.nama : 'Baterai 13 Sonic');
       setHargaJual(defaultItem ? defaultItem.harga : 50000);
     } else if (newCat === 'Aidtip') {
       const defaultItem = AIDTIP_SUBTYPES[0];
