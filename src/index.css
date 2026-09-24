@@ -51,8 +51,8 @@
   }
   
   @page {
-    size: A5 landscape;
-    margin: 5mm 8mm;
+    size: auto;
+    margin: 8mm 10mm;
   }
 
   /* Hide navigation, sidebars, buttons and modals backgrounds */
@@ -68,7 +68,7 @@
     margin: 0 !important;
   }
 
-  #printable-area, #print-tanda-terima {
+  #printable-area, #print-tanda-terima, #printable-meeting-report {
     display: block !important;
     position: relative !important;
     width: 100% !important;
@@ -79,6 +79,11 @@
     overflow: visible !important;
     background: white !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
 

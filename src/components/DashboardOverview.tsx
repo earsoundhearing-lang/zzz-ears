@@ -37,7 +37,9 @@ import {
   Package,
   Share2,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -61,6 +63,7 @@ import { StockConditionSection } from './Dashboard/StockConditionSection';
 import { OutstandingWorkSection } from './Dashboard/OutstandingWorkSection';
 import { ReferalBreakdownSection } from './Dashboard/ReferalBreakdownSection';
 import { ProductSalesBreakdownSection } from './Dashboard/ProductSalesBreakdownSection';
+import { MeetingReportModal, MeetingPeriodType } from './Meeting/MeetingReportModal';
 
 interface DashboardOverviewProps {
   setActiveTab: (tab: NavTab) => void;
@@ -115,6 +118,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const [dateFilter, setDateFilter] = useState<'all'|'today'|'week'|'month'|'custom'>('month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  // Meeting Report Modal state (Bahan Meeting Mingguan, Bulanan, Tahunan)
+  const [isMeetingReportOpen, setIsMeetingReportOpen] = useState(false);
+  const [meetingPeriodType, setMeetingPeriodType] = useState<MeetingPeriodType>('bulanan');
 
   // Filtering function
   const isDateInRange = (dateStr: string) => {
@@ -312,6 +319,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <span>Laporan Lengkap</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#F5B438]" />
             </button>
+
+            <button
+              onClick={() => {
+                setMeetingPeriodType('bulanan');
+                setIsMeetingReportOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#23277A] hover:bg-[#2e339c] text-[#F5B438] hover:text-white font-bold text-xs rounded-xl border border-[#3A42A8] transition-all cursor-pointer"
+              title="Cetak Laporan Lengkap untuk Meeting Mingguan, Bulanan, atau Tahunan"
+            >
+              <Printer className="w-4 h-4 text-[#F5B438]" />
+              <span>Cetak Bahan Meeting</span>
+            </button>
           </div>
         </div>
       </div>
@@ -344,23 +363,38 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
         
-        {dateFilter === 'custom' && (
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
-            <input 
-              type="date" 
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="text-xs font-medium border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-800 text-slate-800 bg-white"
-            />
-            <span className="text-slate-400 font-normal text-xs">s/d</span>
-            <input 
-              type="date" 
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="text-xs font-medium border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-800 text-slate-800 bg-white"
-            />
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          {dateFilter === 'custom' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input 
+                type="date" 
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="text-xs font-medium border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-800 text-slate-800 bg-white"
+              />
+              <span className="text-slate-400 font-normal text-xs">s/d</span>
+              <input 
+                type="date" 
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="text-xs font-medium border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-800 text-slate-800 bg-white"
+              />
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
+              setMeetingPeriodType(mapMode);
+              setIsMeetingReportOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#181B57] hover:bg-[#23277A] text-[#F5B438] hover:text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            title="Buka & Cetak Bahan Meeting Mingguan, Bulanan, Tahunan"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Cetak Bahan Meeting</span>
+          </button>
+        </div>
       </div>
 
       {/* ======================================================== */}
@@ -605,12 +639,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           aksesoris={filteredAksesoris}
           earmould={filteredEarmould}
           reparasi={filteredReparasi}
+          onOpenMeetingReport={() => {
+            const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
+            setMeetingPeriodType(mapMode);
+            setIsMeetingReportOpen(true);
+          }}
         />
 
         {/* 6. Persentase Produk Fisik Terjual */}
         <ProductSalesBreakdownSection
           aksesoris={filteredAksesoris}
           abd={filteredABD}
+          onOpenMeetingReport={() => {
+            const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
+            setMeetingPeriodType(mapMode);
+            setIsMeetingReportOpen(true);
+          }}
         />
       </div>
 
@@ -689,6 +733,32 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ======================================================== */}
+      {/* MODAL BAHAN CETAK MEETING (MINGGUAN, BULANAN, TAHUNAN)   */}
+      {/* ======================================================== */}
+      <MeetingReportModal
+        isOpen={isMeetingReportOpen}
+        onClose={() => setIsMeetingReportOpen(false)}
+        currentUser={currentUser}
+        selectedBranch={selectedBranch}
+        patients={patients}
+        aksesoris={safeAksesoris}
+        jasaPeriksa={safeJasaPeriksa}
+        abd={safeABD}
+        kasKecil={safeKasKecil}
+        earmould={safeEarmould}
+        reparasi={safeReparasi}
+        inventoryABD={inventoryABD}
+        inventoryAksesoris={inventoryAksesoris}
+        allPatients={allPatients}
+        allAksesoris={allAksesoris}
+        allJasaPeriksa={allJasaPeriksa}
+        allABD={allABD}
+        allEarmould={allEarmould}
+        allReparasi={allReparasi}
+        initialPeriodType={meetingPeriodType}
+      />
     </div>
   );
 };

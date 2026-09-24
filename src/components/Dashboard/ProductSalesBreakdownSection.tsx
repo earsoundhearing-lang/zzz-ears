@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
 import { AksesorisTransaction, ABDTransaction } from '../../types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Printer } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatters';
 import { normalizeABDTipe, normalizeAksesorisProduct } from '../../utils/productNormalizer';
 
 interface ProductSalesBreakdownSectionProps {
   aksesoris: AksesorisTransaction[];
   abd: ABDTransaction[];
+  onOpenMeetingReport?: () => void;
 }
 
 const PRODUCT_COLORS = [
@@ -18,6 +19,7 @@ const PRODUCT_COLORS = [
 export const ProductSalesBreakdownSection: React.FC<ProductSalesBreakdownSectionProps> = ({
   aksesoris = [],
   abd = [],
+  onOpenMeetingReport,
 }) => {
   const { productStats, totalQty, totalValue } = useMemo(() => {
     const map: { [key: string]: { name: string; category: string; qty: number; value: number } } = {};
@@ -104,9 +106,21 @@ export const ProductSalesBreakdownSection: React.FC<ProductSalesBreakdownSection
           </h3>
           <p className="text-xs text-slate-500 font-normal">Volume & pangsa unit ABD dan Aksesoris</p>
         </div>
-        <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-          {totalQty} Unit Terjual
-        </span>
+        <div className="flex items-center gap-2">
+          {onOpenMeetingReport && (
+            <button
+              onClick={onOpenMeetingReport}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-[#23277A] hover:text-white text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors cursor-pointer"
+              title="Cetak sebagai bahan meeting mingguan / bulanan / tahunan"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak Bahan Meeting</span>
+            </button>
+          )}
+          <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+            {totalQty} Unit Terjual
+          </span>
+        </div>
       </div>
 
       <div className="h-48 w-full flex items-center justify-center">

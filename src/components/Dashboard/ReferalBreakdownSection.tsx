@@ -39,7 +39,8 @@ import {
   Layers,
   ChevronRight,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Printer
 } from 'lucide-react';
 
 interface ReferalBreakdownSectionProps {
@@ -49,6 +50,7 @@ interface ReferalBreakdownSectionProps {
   aksesoris?: AksesorisTransaction[];
   earmould?: EarmouldReport[];
   reparasi?: ReparasiService[];
+  onOpenMeetingReport?: () => void;
 }
 
 export type ReferalMainCategory = 'ALL' | 'ONLINE' | 'DOKTER_RS' | 'OFFLINE';
@@ -115,6 +117,7 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
   aksesoris = [],
   earmould = [],
   reparasi = [],
+  onOpenMeetingReport,
 }) => {
   // Active Tab & Filters
   const [activeCategoryTab, setActiveCategoryTab] = useState<ReferalMainCategory>('ALL');
@@ -633,8 +636,19 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
           </p>
         </div>
 
-        {/* Filter Bulan / Periode */}
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        {/* Filter Bulan / Periode & Cetak Bahan Meeting */}
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          {onOpenMeetingReport && (
+            <button
+              onClick={onOpenMeetingReport}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-[#23277A] hover:text-white text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors cursor-pointer"
+              title="Cetak sebagai bahan meeting mingguan / bulanan / tahunan"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak Bahan Meeting</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <select
