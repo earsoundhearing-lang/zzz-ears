@@ -21,7 +21,14 @@ import {
 } from '../../types';
 import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, ABDPriceItem } from '../../data/priceCatalog';
 import { formatIndoDate, formatRupiah } from '../../utils/formatters';
-import { BRANCHES, getBranchByCode, generateKwitansiNumber } from '../../utils/branches';
+import { 
+  BRANCHES, 
+  getBranchByCode, 
+  generateKwitansiNumber, 
+  getDefaultBsiAccount, 
+  ALL_BSI_ACCOUNTS_ORDERED, 
+  BRANCH_BSI_ACCOUNTS 
+} from '../../utils/branches';
 import { POSReceiptModal } from './POSReceiptModal';
 import { PatientModal } from '../Patients/PatientModal';
 import { 
@@ -143,13 +150,18 @@ export const POSPage: React.FC<POSPageProps> = ({
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
-  const [selectedBsiAccount, setSelectedBsiAccount] = useState<BsiAccount>('BSI 8171219847');
+  const [selectedBsiAccount, setSelectedBsiAccount] = useState<BsiAccount>(getDefaultBsiAccount(activeBranchCode));
   const [shopeeOrderNo, setShopeeOrderNo] = useState('');
   const [cashGiven, setCashGiven] = useState<number | ''>('');
   const [isDP, setIsDP] = useState(false);
   const [uangMuka, setUangMuka] = useState<number | ''>('');
   const [selectedAudiometris, setSelectedAudiometris] = useState(currentUser.fullName || AUDIOMETRIS_LIST[0]);
   const [transactionNotes, setTransactionNotes] = useState('');
+
+  // Sync default BSI account when branch changes
+  useEffect(() => {
+    setSelectedBsiAccount(getDefaultBsiAccount(activeBranchCode));
+  }, [activeBranchCode]);
 
   // Checkout Receipt Modal
   const [completedReceipt, setCompletedReceipt] = useState<POSTransactionReceipt | null>(null);
@@ -1080,19 +1092,22 @@ export const POSPage: React.FC<POSPageProps> = ({
                 {/* Transfer Bank Selection */}
                 {paymentMethod === 'Transfer' && (
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Rekening Tujuan BSI:</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Rekening Tujuan BSI:</label>
+                      <span className="text-[9px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                        Default Cabang [{activeBranchCode}]
+                      </span>
+                    </div>
                     <select
                       value={selectedBsiAccount}
                       onChange={(e) => setSelectedBsiAccount(e.target.value as BsiAccount)}
                       className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800"
                     >
-                      <option value="BSI 8171219847">BSI 8171219847 (Pusat / Operasional)</option>
-                      <option value="BSI 7320688177">BSI 7320688177</option>
-                      <option value="BSI 7348014514">BSI 7348014514</option>
-                      <option value="BSI 7368736893">BSI 7368736893</option>
-                      <option value="BSI 7368737822">BSI 7368737822</option>
-                      <option value="BSI 8888977822">BSI 8888977822</option>
-                      <option value="BSI 9009343910">BSI 9009343910</option>
+                      {ALL_BSI_ACCOUNTS_ORDERED.map((b) => (
+                        <option key={b.account} value={b.account}>
+                          {b.account} — Cabang {b.branchName} ({b.branchCode}) {b.branchCode === activeBranchCode ? '★ [Default]' : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}

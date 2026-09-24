@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction, JenisPemeriksaan, Patient } from '../../types';
 import { formatIndoDate, formatRupiah, terbilang, formatPatientWithGelar } from '../../utils/formatters';
-import { getBranchByCode } from '../../utils/branches';
+import { getBranchByCode, getDefaultBsiAccount } from '../../utils/branches';
 import { printHtmlElement, downloadElementAsPdf, sharePdfViaWhatsApp } from '../../utils/printHelper';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { EarsoundLogo } from './EarsoundLogo';
@@ -554,9 +554,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   Faskes: {transaction.payment.namaFaskes}
                 </span>
               )}
-              {transaction.payment.bsiAccount && (
+              {(transaction.payment.bsiAccount || (transaction.payment.method === 'Transfer' ? getDefaultBsiAccount(transaction.branchCode) : undefined)) && (
                 <span className="text-slate-700 font-bold block font-mono text-xs">
-                  Rek: {transaction.payment.bsiAccount}
+                  Rek: {transaction.payment.bsiAccount || getDefaultBsiAccount(transaction.branchCode)}
                 </span>
               )}
             </div>

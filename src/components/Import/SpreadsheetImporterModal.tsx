@@ -8,7 +8,7 @@ import {
   Patient, JasaPeriksaTransaction, AksesorisTransaction, 
   ABDTransaction, ReparasiService, BranchCode, PaymentDetails, ReferalSource 
 } from '../../types';
-import { BRANCHES } from '../../utils/branches';
+import { BRANCHES, getDefaultBsiAccount } from '../../utils/branches';
 import { getTodayDateString, calculateAge } from '../../utils/formatters';
 import { matchOfficialDoctorName } from '../../data/doctors';
 
@@ -589,7 +589,7 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
       const payment: PaymentDetails = {
         method: row.pembayaran.toLowerCase().includes('transfer') ? 'Transfer' : 
                 row.pembayaran.toLowerCase().includes('shopee') ? 'Shopee' : 'Cash',
-        bsiAccount: 'BSI 8171219847'
+        bsiAccount: getDefaultBsiAccount(targetBranch)
       };
 
       // Save Transaction based on caseType

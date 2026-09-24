@@ -9,7 +9,7 @@ import {
   AudiogramData
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
-import { generateKwitansiNumber } from '../../utils/branches';
+import { generateKwitansiNumber, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
@@ -228,7 +228,15 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
       tipeABDFitting: adaFittingABD ? tipeABDFitting : undefined,
       potensiPembelian: (adaFittingABD || catatanHAC.trim()) ? potensiPembelian : undefined,
       catatanHAC: catatanHAC.trim() ? catatanHAC : undefined,
-      payment,
+      payment: {
+        ...payment,
+        bsiAccount: (payment.method === 'Transfer' || payment.method === 'Split (Cash & Transfer)')
+          ? (payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+        splitBsiAccount: payment.method === 'Split (Cash & Transfer)'
+          ? (payment.splitBsiAccount || payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+      },
       branchCode: activeBranchCode,
       staffUser: currentUser.username,
     };

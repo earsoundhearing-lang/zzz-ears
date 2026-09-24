@@ -2,6 +2,11 @@ import React from 'react';
 import { PaymentDetails, PaymentMethod, BsiAccount, BranchCode } from '../../types';
 import { CreditCard, Banknote, Building2, Hospital, Split, Calculator, CheckCircle2, ShoppingBag } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatters';
+import { 
+  getDefaultBsiAccount, 
+  ALL_BSI_ACCOUNTS_ORDERED, 
+  BRANCH_BSI_ACCOUNTS 
+} from '../../utils/branches';
 
 interface PaymentSelectorProps {
   value?: PaymentDetails;
@@ -11,15 +16,7 @@ interface PaymentSelectorProps {
   onChange: (value: PaymentDetails) => void;
 }
 
-export const BSI_ACCOUNTS: BsiAccount[] = [
-  'BSI 8171219847',
-  'BSI 7320688177',
-  'BSI 7348014514',
-  'BSI 7368736893',
-  'BSI 7368737822',
-  'BSI 8888977822',
-  'BSI 9009343910',
-];
+export const BSI_ACCOUNTS: BsiAccount[] = ALL_BSI_ACCOUNTS_ORDERED.map((b) => b.account);
 
 export const PaymentSelector: React.FC<PaymentSelectorProps> = ({ 
   value: propValue, 
@@ -29,13 +26,31 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   onChange 
 }) => {
   const currentVal = propValue || payment || { method: 'Cash' };
+  const defaultBsi = getDefaultBsiAccount(branchCode);
+  const activeBsiInfo = branchCode ? BRANCH_BSI_ACCOUNTS[branchCode.toUpperCase()] : undefined;
   const isYaminOrShopeeActive = branchCode === 'YM' || branchCode === 'ALL' || branchCode === 'HQ' || !branchCode || currentVal.method === 'Shopee';
+
+  // Ensure default branch BSI account is applied when Transfer/Split is active without specific account
+  React.useEffect(() => {
+    if (currentVal.method === 'Transfer' && !currentVal.bsiAccount) {
+      onChange({
+        ...currentVal,
+        bsiAccount: defaultBsi,
+      });
+    } else if (currentVal.method === 'Split (Cash & Transfer)' && (!currentVal.bsiAccount || !currentVal.splitBsiAccount)) {
+      onChange({
+        ...currentVal,
+        bsiAccount: currentVal.bsiAccount || defaultBsi,
+        splitBsiAccount: currentVal.splitBsiAccount || currentVal.bsiAccount || defaultBsi,
+      });
+    }
+  }, [branchCode, currentVal.method]);
 
   const handleMethodChange = (method: PaymentMethod) => {
     if (method === 'Transfer') {
       onChange({
         method,
-        bsiAccount: currentVal.bsiAccount || BSI_ACCOUNTS[0],
+        bsiAccount: currentVal.bsiAccount || defaultBsi,
       });
     } else if (method === 'Shopee') {
       onChange({
@@ -50,8 +65,8 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
         isSplit: true,
         cashAmount: currentVal.cashAmount !== undefined && currentVal.cashAmount > 0 ? currentVal.cashAmount : half,
         transferAmount: currentVal.transferAmount !== undefined && currentVal.transferAmount > 0 ? currentVal.transferAmount : rem,
-        bsiAccount: currentVal.bsiAccount || currentVal.splitBsiAccount || BSI_ACCOUNTS[0],
-        splitBsiAccount: currentVal.splitBsiAccount || currentVal.bsiAccount || BSI_ACCOUNTS[0],
+        bsiAccount: currentVal.bsiAccount || currentVal.splitBsiAccount || defaultBsi,
+        splitBsiAccount: currentVal.splitBsiAccount || currentVal.bsiAccount || defaultBsi,
       });
     } else if (method === 'Piutang BPJS') {
       onChange({
@@ -89,7 +104,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
       isSplit: true,
       cashAmount: safeCash,
       transferAmount: autoTransfer,
-      bsiAccount: currentVal.bsiAccount || BSI_ACCOUNTS[0],
+      bsiAccount: currentVal.bsiAccount || defaultBsi,
     });
   };
 
@@ -104,7 +119,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
       isSplit: true,
       cashAmount: autoCash,
       transferAmount: safeTransfer,
-      bsiAccount: currentVal.bsiAccount || BSI_ACCOUNTS[0],
+      bsiAccount: currentVal.bsiAccount || defaultBsi,
     });
   };
 
@@ -116,7 +131,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
       isSplit: true,
       cashAmount: half,
       transferAmount: totalAmount - half,
-      bsiAccount: currentVal.bsiAccount || BSI_ACCOUNTS[0],
+      bsiAccount: currentVal.bsiAccount || defaultBsi,
     });
   };
 
@@ -243,18 +258,25 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
       {/* Transfer detail */}
       {currentVal.method === 'Transfer' && (
         <div className="pt-2 animate-fadeIn bg-white p-3.5 rounded-xl border border-indigo-200">
-          <label className="block text-xs font-bold text-[#23277A] mb-1">
-            Pilih Rekening Bank BSI <span className="text-red-500">*</span>
-          </label>
+          <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+            <label className="block text-xs font-bold text-[#23277A]">
+              Pilih Rekening Bank BSI <span className="text-red-500">*</span>
+            </label>
+            {activeBsiInfo && (
+              <span className="text-[10px] font-extrabold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full border border-teal-300">
+                Default Cabang [{branchCode}]: {activeBsiInfo.accountNumber} ({activeBsiInfo.branchName})
+              </span>
+            )}
+          </div>
           <select
             id="bsi-account-select"
-            value={currentVal.bsiAccount || BSI_ACCOUNTS[0]}
+            value={currentVal.bsiAccount || defaultBsi}
             onChange={(e) => handleAccountChange(e.target.value as BsiAccount)}
             className="w-full bg-slate-50 border border-indigo-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold focus:ring-2 focus:ring-[#23277A]"
           >
-            {BSI_ACCOUNTS.map((acc) => (
-              <option key={acc} value={acc}>
-                {acc} (Bank Syariah Indonesia)
+            {ALL_BSI_ACCOUNTS_ORDERED.map((b) => (
+              <option key={b.account} value={b.account}>
+                {b.account} — Cabang {b.branchName} ({b.branchCode}) {b.branchCode === branchCode ? '★ [Default]' : ''}
               </option>
             ))}
           </select>
@@ -355,17 +377,24 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
 
           {/* BSI Account for Transfer Portion */}
           <div className="bg-white p-3 rounded-xl border border-slate-200">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Rekening Bank BSI Penerima Transfer <span className="text-red-500">*</span>
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Rekening Bank BSI Penerima Transfer <span className="text-red-500">*</span>
+              </label>
+              {activeBsiInfo && (
+                <span className="text-[10px] font-extrabold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full border border-teal-300">
+                  Default Cabang [{branchCode}]: {activeBsiInfo.accountNumber} ({activeBsiInfo.branchName})
+                </span>
+              )}
+            </div>
             <select
-              value={currentVal.bsiAccount || currentVal.splitBsiAccount || BSI_ACCOUNTS[0]}
+              value={currentVal.bsiAccount || currentVal.splitBsiAccount || defaultBsi}
               onChange={(e) => handleAccountChange(e.target.value as BsiAccount)}
               className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-800 font-bold focus:ring-2 focus:ring-[#23277A]"
             >
-              {BSI_ACCOUNTS.map((acc) => (
-                <option key={acc} value={acc}>
-                  {acc} (Bank Syariah Indonesia)
+              {ALL_BSI_ACCOUNTS_ORDERED.map((b) => (
+                <option key={b.account} value={b.account}>
+                  {b.account} — Cabang {b.branchName} ({b.branchCode}) {b.branchCode === branchCode ? '★ [Default]' : ''}
                 </option>
               ))}
             </select>

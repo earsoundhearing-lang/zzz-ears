@@ -18,6 +18,7 @@ import { findAksesorisSku } from '../../data/skuCatalog';
 import { PaymentSelector } from './PaymentSelector';
 import { Edit3, Save, X, Calculator, Stethoscope, Volume2, ShoppingBag, Plus, Trash2, Tag, CheckCircle2 } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatters';
+import { getDefaultBsiAccount } from '../../utils/branches';
 
 interface EditTransactionModalProps {
   isOpen: boolean;
@@ -232,6 +233,17 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     }
 
 
+    const effectiveBranchCode = transaction?.branchCode || 'YM';
+    const finalPayment: PaymentDetails = {
+      ...payment,
+      bsiAccount: (payment.method === 'Transfer' || payment.method === 'Split (Cash & Transfer)')
+        ? (payment.bsiAccount || getDefaultBsiAccount(effectiveBranchCode))
+        : undefined,
+      splitBsiAccount: payment.method === 'Split (Cash & Transfer)'
+        ? (payment.splitBsiAccount || payment.bsiAccount || getDefaultBsiAccount(effectiveBranchCode))
+        : undefined,
+    };
+
     if (type === 'AKS' && aks && onSaveAksesoris) {
       const netTotal = Math.max(0, (aksHargaJual * aksQty) - aksDiskon);
       const updatedAks: AksesorisTransaction = {
@@ -246,7 +258,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         hargaJual: aksHargaJual,
         diskon: aksDiskon,
         jumlah: netTotal,
-        payment,
+        payment: finalPayment,
       };
       onSaveAksesoris(updatedAks);
     } else if (type === 'JSA' && jsa && onSaveJasa) {
@@ -271,7 +283,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         potensiPembelian: adaFittingABD || catatanHAC ? potensiPembelian : undefined,
         catatanHAC: catatanHAC.trim() ? catatanHAC : undefined,
         audiogram: jsa.audiogram,
-        payment,
+        payment: finalPayment,
       };
       onSaveJasa(updatedJsa);
     } else if (type === 'ABD' && abd && onSaveABD) {
@@ -299,7 +311,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         uangMuka: dpVal,
         sisaPembayaran: sisaVal,
         isDP: sisaVal > 0,
-        payment,
+        payment: finalPayment,
       };
       onSaveABD(updatedAbd);
     }

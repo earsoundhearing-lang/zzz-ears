@@ -16,7 +16,7 @@ import {
   ABDInventoryEntry
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
-import { generateBranchInvoiceNumber, BRANCHES } from '../../utils/branches';
+import { generateBranchInvoiceNumber, BRANCHES, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, CatalogItem } from '../../data/priceCatalog';
@@ -513,7 +513,15 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       hargaJual: cartTotalAmount,
       diskon,
       jumlah: netCartTotal,
-      payment,
+      payment: {
+        ...payment,
+        bsiAccount: (payment.method === 'Transfer' || payment.method === 'Split (Cash & Transfer)')
+          ? (payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+        splitBsiAccount: payment.method === 'Split (Cash & Transfer)'
+          ? (payment.splitBsiAccount || payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+      },
       branchCode: activeBranchCode,
       staffUser: staffPetugas,
       ongkosKirim,

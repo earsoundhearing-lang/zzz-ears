@@ -1,5 +1,5 @@
 import { AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction, Patient } from '../types';
-import { getBranchByCode } from './branches';
+import { getBranchByCode, getDefaultBsiAccount } from './branches';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from './formatters';
 
 /**
@@ -213,9 +213,11 @@ export function generateWhatsAppReceiptMessage({
   if (transaction.payment.method === 'Split (Cash & Transfer)') {
     lines.push(`- Cash: ${formatRupiah(transaction.payment.cashAmount || 0)}`);
     lines.push(`- Transfer: ${formatRupiah(transaction.payment.transferAmount || 0)}`);
-    if (transaction.payment.splitBsiAccount) {
-      lines.push(`  (Rekening: ${transaction.payment.splitBsiAccount})`);
-    }
+    const splitAcc = transaction.payment.splitBsiAccount || transaction.payment.bsiAccount || getDefaultBsiAccount(transaction.branchCode);
+    lines.push(`  (Rekening: ${splitAcc})`);
+  } else if (transaction.payment.method === 'Transfer') {
+    const acc = transaction.payment.bsiAccount || getDefaultBsiAccount(transaction.branchCode);
+    lines.push(`Rekening: ${acc}`);
   } else if (transaction.payment.bsiAccount) {
     lines.push(`Rekening: ${transaction.payment.bsiAccount}`);
   }

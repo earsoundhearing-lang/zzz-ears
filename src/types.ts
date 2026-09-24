@@ -29,13 +29,14 @@ export type ReferalSource =
   | 'Lain-lain';
 
 export type BsiAccount = 
-  | 'BSI 8171219847'
-  | 'BSI 7320688177'
-  | 'BSI 7348014514'
-  | 'BSI 7368736893'
-  | 'BSI 7368737822'
-  | 'BSI 8888977822'
-  | 'BSI 9009343910';
+  | 'BSI 7368736893' // PAKAM (PK)
+  | 'BSI 7368737822' // BINJAI (BJ)
+  | 'BSI 7320688177' // YAMIN (YM)
+  | 'BSI 7348014514' // LANGSA (LS)
+  | 'BSI 8171219847' // BETAHIVE (BT)
+  | 'BSI 8888977822' // SIANTAR (ST)
+  | 'BSI 9009343910' // BULAN (PB)
+  | 'BSI 1200819865'; // JAMBI (JB)
 
 export type PaymentMethod = 
   | 'Cash' 

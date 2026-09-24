@@ -12,7 +12,7 @@ import {
   ABDBonusItem
 } from '../../types';
 import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
-import { generateBranchInvoiceNumber, getBranchByCode } from '../../utils/branches';
+import { generateBranchInvoiceNumber, getBranchByCode, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, AKSESORIS_CATEGORY_LIST, PAKET_BUNDLING } from '../../data/priceCatalog';
@@ -489,7 +489,15 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
       uangMuka: isDP ? effectiveDP : netTotal,
       sisaPembayaran,
       isDP: sisaPembayaran > 0,
-      payment,
+      payment: {
+        ...payment,
+        bsiAccount: (payment.method === 'Transfer' || payment.method === 'Split (Cash & Transfer)')
+          ? (payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+        splitBsiAccount: payment.method === 'Split (Cash & Transfer)'
+          ? (payment.splitBsiAccount || payment.bsiAccount || getDefaultBsiAccount(activeBranchCode))
+          : undefined,
+      },
       branchCode: activeBranchCode,
       staffUser: currentUser.username,
     };

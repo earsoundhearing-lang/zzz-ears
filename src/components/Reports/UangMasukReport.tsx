@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction } from '../../types';
 import { formatRupiah, formatIndoDate } from '../../utils/formatters';
+import { getBsiAccountDetails } from '../../utils/branches';
 import { 
   ResponsiveContainer, 
   BarChart, 
@@ -182,7 +183,7 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
           <div>
             <span className="text-xs font-medium text-slate-200 block">Total Transfer Bank BSI</span>
             <span className="text-xl font-extrabold mt-1 block">{formatRupiah(totalTransfer)}</span>
-            <span className="text-[11px] text-amber-300 font-medium">6 Rekening Resmi BSI</span>
+            <span className="text-[11px] text-amber-300 font-medium">8 Rekening Resmi Cabang BSI</span>
           </div>
           <div className="p-3 bg-white/10 rounded-xl shrink-0">
             <CreditCard className="w-6 h-6 text-white" />
@@ -283,13 +284,23 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
           <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900">
             Rincian Penerimaan Transfer Per Rekening BSI:
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {Object.entries(bsiAccountsMap).map(([accName, accTotal]) => (
-              <div key={accName} className="bg-teal-50/70 p-3 rounded-xl border border-teal-200">
-                <span className="text-xs font-semibold text-slate-700 block">{accName}</span>
-                <span className="text-md font-bold text-teal-800">{formatRupiah(accTotal)}</span>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {Object.entries(bsiAccountsMap).map(([accName, accTotal]) => {
+              const bsiInfo = getBsiAccountDetails(accName);
+              return (
+                <div key={accName} className="bg-teal-50/70 p-3 rounded-xl border border-teal-200 flex flex-col justify-between">
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-xs font-mono font-bold text-slate-800">{accName}</span>
+                    {bsiInfo && (
+                      <span className="text-[10px] font-extrabold bg-teal-200 text-teal-900 px-1.5 py-0.5 rounded-full">
+                        {bsiInfo.branchName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-black text-teal-800">{formatRupiah(accTotal)}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
