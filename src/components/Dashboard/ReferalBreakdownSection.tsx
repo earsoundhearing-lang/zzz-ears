@@ -42,6 +42,7 @@ import {
   CheckCircle2,
   Printer
 } from 'lucide-react';
+import { DoctorReferralAnalyticsView, DoctorChannelItem } from './DoctorReferralAnalyticsView';
 
 interface ReferalBreakdownSectionProps {
   patients?: Patient[];
@@ -581,9 +582,17 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
     return list;
   }, [activeCategoryTab, allChannelsList, onlineChannelsList, doctorChannelsList, offlineChannelsList, doctorSearchQuery]);
 
-  // Chart Data for Donut / Pie
+  // Chart Data for Donut / Pie (Cleanly aggregated)
   const chartData = useMemo(() => {
-    const totalMetricValue = displayChannels.reduce((sum, ch) => {
+    const validChannels = displayChannels.filter(ch => {
+      if (metricMode === 'omset') return ch.totalOmset > 0;
+      if (metricMode === 'sales') return ch.salesCount > 0;
+      if (metricMode === 'patients') return ch.patientCount > 0;
+      if (metricMode === 'aov') return ch.aov > 0;
+      return true;
+    });
+
+    const totalMetricValue = validChannels.reduce((sum, ch) => {
       if (metricMode === 'omset') return sum + ch.totalOmset;
       if (metricMode === 'sales') return sum + ch.salesCount;
       if (metricMode === 'patients') return sum + ch.patientCount;
@@ -591,15 +600,12 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
       return sum;
     }, 0);
 
-    return displayChannels
-      .filter(ch => {
-        if (metricMode === 'omset') return ch.totalOmset > 0;
-        if (metricMode === 'sales') return ch.salesCount > 0;
-        if (metricMode === 'patients') return ch.patientCount > 0;
-        if (metricMode === 'aov') return ch.aov > 0;
-        return true;
-      })
-      .map(ch => {
+    // If more than 8 channels, aggregate into Top 6 + Lainnya to avoid crowded slices
+    if (validChannels.length > 8) {
+      const topItems = validChannels.slice(0, 6);
+      const otherItems = validChannels.slice(6);
+
+      const items = topItems.map((ch, idx) => {
         let value = 0;
         if (metricMode === 'omset') value = ch.totalOmset;
         else if (metricMode === 'sales') value = ch.salesCount;
@@ -612,7 +618,7 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
           name: ch.name,
           value,
           percent,
-          color: ch.color,
+          color: ch.color || ['#23277A', '#0D9488', '#F59E0B', '#6366F1', '#EC4899', '#0284C7'][idx % 6],
           category: ch.category,
           patientCount: ch.patientCount,
           salesCount: ch.salesCount,
@@ -620,6 +626,54 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
           aov: ch.aov,
         };
       });
+
+      const otherValue = otherItems.reduce((sum, ch) => {
+        if (metricMode === 'omset') return sum + ch.totalOmset;
+        if (metricMode === 'sales') return sum + ch.salesCount;
+        if (metricMode === 'patients') return sum + ch.patientCount;
+        if (metricMode === 'aov') return sum + ch.aov;
+        return sum;
+      }, 0);
+
+      if (otherValue > 0) {
+        items.push({
+          key: 'OTHERS',
+          name: `Saluran Lainnya (${otherItems.length})`,
+          value: otherValue,
+          percent: totalMetricValue > 0 ? Number(((otherValue / totalMetricValue) * 100).toFixed(1)) : 0,
+          color: '#94A3B8',
+          category: 'Offline' as const,
+          patientCount: otherItems.reduce((s, c) => s + c.patientCount, 0),
+          salesCount: otherItems.reduce((s, c) => s + c.salesCount, 0),
+          totalOmset: otherItems.reduce((s, c) => s + c.totalOmset, 0),
+          aov: 0,
+        });
+      }
+
+      return items;
+    }
+
+    return validChannels.map(ch => {
+      let value = 0;
+      if (metricMode === 'omset') value = ch.totalOmset;
+      else if (metricMode === 'sales') value = ch.salesCount;
+      else if (metricMode === 'patients') value = ch.patientCount;
+      else if (metricMode === 'aov') value = ch.aov;
+
+      const percent = totalMetricValue > 0 ? Number(((value / totalMetricValue) * 100).toFixed(1)) : 0;
+      return {
+        key: ch.key,
+        name: ch.name,
+        value,
+        percent,
+        color: ch.color,
+        category: ch.category,
+        patientCount: ch.patientCount,
+        salesCount: ch.salesCount,
+        totalOmset: ch.totalOmset,
+        aov: ch.aov,
+      };
+    });
   }, [displayChannels, metricMode]);
 
   return (
@@ -881,171 +935,160 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
         </div>
       </div>
 
-      {/* Special search input if Dokter Tab is active */}
-      {activeCategoryTab === 'DOKTER_RS' && (
-        <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-          <Search className="w-4 h-4 text-slate-400 ml-1" />
-          <input
-            type="text"
-            placeholder="Cari nama dokter perujuk spesialis THT atau rumah sakit..."
-            value={doctorSearchQuery}
-            onChange={(e) => setDoctorSearchQuery(e.target.value)}
-            className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-hidden"
-          />
-          {doctorSearchQuery && (
-            <button 
-              type="button"
-              onClick={() => setDoctorSearchQuery('')}
-              className="p-1 text-slate-400 hover:text-slate-600 text-xs"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      )}
+      {/* 4. Chart & Leaderboard Section: If DOKTER_RS, render dedicated Doctor Referral Analytics Suite */}
+      {activeCategoryTab === 'DOKTER_RS' ? (
+        <DoctorReferralAnalyticsView
+          doctorChannelsList={doctorChannelsList as DoctorChannelItem[]}
+          grandTotalOmset={grandTotalOmset}
+          metricMode={metricMode}
+          onSelectDoctor={(ch) => setDrilldownChannel(ch as ChannelDetailItem)}
+          selectedMonthLabel={formatMonthLabel(selectedMonthFilter)}
+          onOpenMeetingReport={onOpenMeetingReport}
+        />
+      ) : (
+        /* Standard General Chart & Leaderboard for ALL, ONLINE, OFFLINE */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Visual Donut Chart */}
+          <div className="lg:col-span-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/70 space-y-3 flex flex-col items-center justify-center min-h-[320px]">
+            <div className="w-full flex items-center justify-between text-xs font-bold text-slate-700">
+              <span>Proporsi Pangsa {metricMode === 'omset' ? 'Omset' : metricMode === 'sales' ? 'Sales Transaksi' : metricMode === 'patients' ? 'Jumlah Pasien' : 'Nilai Rata-rata'}</span>
+              <span className="text-[11px] text-slate-500 font-normal">
+                {formatMonthLabel(selectedMonthFilter)}
+              </span>
+            </div>
 
-      {/* 4. Chart & Ranking Breakdown View */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Visual Donut Chart */}
-        <div className="lg:col-span-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/70 space-y-3 flex flex-col items-center justify-center min-h-[320px]">
-          <div className="w-full flex items-center justify-between text-xs font-bold text-slate-700">
-            <span>Proporsi Pangsa {metricMode === 'omset' ? 'Omset' : metricMode === 'sales' ? 'Sales Transaksi' : metricMode === 'patients' ? 'Jumlah Pasien' : 'Nilai Rata-rata'}</span>
-            <span className="text-[11px] text-slate-500 font-normal">
-              {formatMonthLabel(selectedMonthFilter)}
-            </span>
+            <div className="h-60 w-full flex items-center justify-center">
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(val: any, name: any, item: any) => {
+                        const payload = item.payload;
+                        const formattedVal = metricMode === 'omset' || metricMode === 'aov' 
+                          ? formatRupiah(Number(val)) 
+                          : `${val} ${metricMode === 'patients' ? 'Pasien' : 'Transaksi'}`;
+                        return [
+                          `${formattedVal} (${payload.percent}%)`, 
+                          payload.name
+                        ];
+                      }} 
+                      contentStyle={{ 
+                        borderRadius: '12px', 
+                        border: '1px solid #E2E8F0', 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                        fontSize: '12px'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center text-xs text-slate-400 italic py-8">
+                  Belum ada data referal pada kategori / periode ini.
+                </div>
+              )}
+            </div>
+
+            {/* Mini Legend Summary */}
+            <div className="w-full grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200/60">
+              {chartData.slice(0, 4).map(item => (
+                <div key={item.key} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-slate-600 truncate font-medium">{item.name}</span>
+                  <span className="text-slate-900 font-bold ml-auto">{item.percent}%</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="h-60 w-full flex items-center justify-center">
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(val: any, name: any, item: any) => {
-                      const payload = item.payload;
-                      const formattedVal = metricMode === 'omset' || metricMode === 'aov' 
-                        ? formatRupiah(Number(val)) 
-                        : `${val} ${metricMode === 'patients' ? 'Pasien' : 'Transaksi'}`;
-                      return [
-                        `${formattedVal} (${payload.percent}%)`, 
-                        payload.name
-                      ];
-                    }} 
-                    contentStyle={{ 
-                      borderRadius: '12px', 
-                      border: '1px solid #E2E8F0', 
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                      fontSize: '12px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+          {/* Right Column: Detailed Leaderboard Ranking */}
+          <div className="lg:col-span-7 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-900 border-b border-slate-100 pb-2">
+              <span>Peringkat & Rincian Perolehan ({displayChannels.length} Saluran)</span>
+              <span className="text-[11px] text-slate-500 font-normal">Klik untuk lihat rekap pasien & faktur</span>
+            </div>
+
+            {displayChannels.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-400 italic">
+                Tidak ditemukan data referal untuk kriteria pencarian ini.
+              </div>
             ) : (
-              <div className="text-center text-xs text-slate-400 italic py-8">
-                Belum ada data referal pada kategori / periode ini.
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                {displayChannels.map((ch, idx) => {
+                  const totalOmsetClinic = grandTotalOmset > 0 ? grandTotalOmset : 1;
+                  const shareOmset = ((ch.totalOmset / totalOmsetClinic) * 100).toFixed(1);
+
+                  return (
+                    <div
+                      key={ch.key}
+                      onClick={() => setDrilldownChannel(ch)}
+                      className="p-3 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
+                          <div className="truncate">
+                            <span className="text-xs font-bold text-slate-900 group-hover:text-slate-800 block truncate">
+                              {ch.name}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-normal block truncate">
+                              {ch.category === 'Dokter & RS' 
+                                ? (ch.hospitalName || 'Rujukan Dokter THT / Medis') 
+                                : ch.category === 'Online'
+                                ? 'Saluran Marketing Digital'
+                                : 'Offline / Toko Fisik'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-bold text-slate-900 block">
+                            {formatRupiah(ch.totalOmset)}
+                          </span>
+                          <div className="flex items-center justify-end gap-2 text-[11px] text-slate-500 mt-0.5">
+                            <span>{ch.patientCount} Pasien</span>
+                            <span>•</span>
+                            <span className="font-semibold text-slate-700">{ch.salesCount} Sales</span>
+                            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                              {shareOmset}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar of Contribution */}
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${Math.min(100, Math.max(4, Number(shareOmset)))}%`, 
+                            backgroundColor: ch.color 
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
-
-          {/* Mini Legend Summary */}
-          <div className="w-full grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200/60">
-            {chartData.slice(0, 4).map(item => (
-              <div key={item.key} className="flex items-center gap-1.5 text-[11px]">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                <span className="text-slate-600 truncate font-medium">{item.name}</span>
-                <span className="text-slate-900 font-bold ml-auto">{item.percent}%</span>
-              </div>
-            ))}
-          </div>
         </div>
-
-        {/* Right Column: Detailed Leaderboard Ranking */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-900 border-b border-slate-100 pb-2">
-            <span>Peringkat & Rincian Perolehan ({displayChannels.length} Saluran)</span>
-            <span className="text-[11px] text-slate-500 font-normal">Klik untuk lihat rekap pasien & faktur</span>
-          </div>
-
-          {displayChannels.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-400 italic">
-              Tidak ditemukan data referal untuk kriteria pencarian ini.
-            </div>
-          ) : (
-            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-              {displayChannels.map((ch, idx) => {
-                const totalOmsetClinic = grandTotalOmset > 0 ? grandTotalOmset : 1;
-                const shareOmset = ((ch.totalOmset / totalOmsetClinic) * 100).toFixed(1);
-
-                return (
-                  <div
-                    key={ch.key}
-                    onClick={() => setDrilldownChannel(ch)}
-                    className="p-3 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all cursor-pointer group shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
-                        <div className="truncate">
-                          <span className="text-xs font-bold text-slate-900 group-hover:text-slate-800 block truncate">
-                            {ch.name}
-                          </span>
-                          <span className="text-[11px] text-slate-500 font-normal block truncate">
-                            {ch.category === 'Dokter & RS' 
-                              ? (ch.hospitalName || 'Rujukan Dokter THT / Medis') 
-                              : ch.category === 'Online'
-                              ? 'Saluran Marketing Digital'
-                              : 'Offline / Toko Fisik'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-bold text-slate-900 block">
-                          {formatRupiah(ch.totalOmset)}
-                        </span>
-                        <div className="flex items-center justify-end gap-2 text-[11px] text-slate-500 mt-0.5">
-                          <span>{ch.patientCount} Pasien</span>
-                          <span>•</span>
-                          <span className="font-semibold text-slate-700">{ch.salesCount} Sales</span>
-                          <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[10px] font-bold">
-                            {shareOmset}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar of Contribution */}
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all duration-500" 
-                        style={{ 
-                          width: `${Math.min(100, Math.max(4, Number(shareOmset)))}%`, 
-                          backgroundColor: ch.color 
-                        }} 
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* 5. Special Online Marketing Channel Effectiveness Summary */}
       {activeCategoryTab === 'ONLINE' && onlineChannelsList.length > 0 && (
