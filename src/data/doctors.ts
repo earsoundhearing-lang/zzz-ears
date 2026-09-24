@@ -66,6 +66,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Immanuel Es Stevanus Purba, Sp.THT (SU)',
   'dr. Indri Adriztina, Sp.THT (SU)',
   'dr. Indriyadevi Indra, Sp.THT (SU)',
+  'dr. Irnanda Warda Rizki Nasution Sp.THT (SU)',
   'dr. Ita L Roderthani, Sp.THT (SU)',
   'dr. Izry Naomi A. Lumbantobing, Sp.THT (SU)',
   'dr. Jakaria Sinaga, Sp.THT (SU)',
@@ -263,6 +264,9 @@ export const matchOfficialDoctorName = (raw: string | undefined | null): string 
   // Direct keyword mappings for common shorthand names
   if (lower.includes('marojahan') || lower.includes('pandiangan')) {
     return 'dr. Marojahan Pandiangan Sp.THT-KL (SU)';
+  }
+  if (lower.includes('irnanda') || lower.includes('warda')) {
+    return 'dr. Irnanda Warda Rizki Nasution Sp.THT (SU)';
   }
   if (lower.includes('fatahillah')) {
     return 'dr. Fatahillah Sp.THT';
