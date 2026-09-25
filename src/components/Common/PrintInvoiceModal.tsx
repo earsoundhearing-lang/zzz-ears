@@ -603,7 +603,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       </td>
                       <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 text-xs">{aks.qty} Unit</td>
                       <td className="py-2.5 px-3.5 text-right font-mono text-slate-800 font-bold text-xs">{formatRupiah(aks.hargaJual)}</td>
-                      <td className="py-2.5 px-3.5 text-right font-mono font-black text-[#23277A] text-xs sm:text-sm">{formatRupiah(aks.jumlah)}</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono font-black text-[#23277A] text-xs sm:text-sm">{formatRupiah(aks.hargaJual * aks.qty)}</td>
                     </tr>
                   )
                 )}
@@ -706,6 +706,12 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
             <div className="w-full sm:w-80 bg-[#F8FAFC] p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm space-y-1.5 shadow-2xs">
               {isJasa && jsa && (
                 <>
+                  <div className="flex justify-between text-slate-700 font-medium">
+                    <span>Subtotal Biaya:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {formatRupiah(jsa.subtotalBiaya || (jsa.biayaJasaPeriksa + (jsa.diskon || 0)))}
+                    </span>
+                  </div>
                   {jsa.diskon && jsa.diskon > 0 ? (
                     <div className="flex justify-between text-rose-600 font-bold">
                       <span>Potongan Diskon:</span>
@@ -783,10 +789,22 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
               {!isJasa && !isABD && (
                 <>
+                  <div className="flex justify-between text-slate-700 font-medium">
+                    <span>Subtotal Tagihan:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {formatRupiah(aks?.hargaJual || (aks?.jumlah ? aks.jumlah + (aks?.diskon || 0) : 0))}
+                    </span>
+                  </div>
                   {aks?.diskon && aks.diskon > 0 ? (
                     <div className="flex justify-between text-rose-600 font-bold">
                       <span>Potongan Diskon:</span>
                       <span className="font-mono">- {formatRupiah(aks.diskon)}</span>
+                    </div>
+                  ) : null}
+                  {aks?.ongkosKirim && aks.ongkosKirim > 0 ? (
+                    <div className="flex justify-between text-slate-700 font-medium">
+                      <span>Ongkos Kirim:</span>
+                      <span className="font-mono font-bold text-slate-900">+{formatRupiah(aks.ongkosKirim)}</span>
                     </div>
                   ) : null}
                   <div className="flex justify-between text-xs sm:text-sm font-bold text-[#23277A] pt-1.5 border-t-2 border-[#23277A]">

@@ -169,8 +169,11 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     } else if (type === 'JSA' && jsa) {
       setJsaNamaCustomer(jsa.namaCustomer || '');
       setSelectedTypes(jsa.jenisPemeriksaan || ['Audiometri Nada Murni']);
-      setBiayaJasaPeriksa(jsa.biayaJasaPeriksa || 100000);
-      setJsaDiskon(jsa.diskon || 0);
+      const effDiskon = jsa.diskon || 0;
+      const rawSubtotal = jsa.subtotalBiaya || (effDiskon > 0 ? (jsa.biayaJasaPeriksa + effDiskon) : jsa.biayaJasaPeriksa) || 50000;
+      setSubtotalBiaya(rawSubtotal);
+      setJsaDiskon(effDiskon);
+      setBiayaJasaPeriksa(Math.max(0, rawSubtotal - effDiskon));
       setResultKananDb(jsa.resultKananDb || '25');
       setResultKiriDb(jsa.resultKiriDb || '30');
       setResultTympanometri(jsa.resultTympanometri || 'Tipe A');
@@ -262,6 +265,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       };
       onSaveAksesoris(updatedAks);
     } else if (type === 'JSA' && jsa && onSaveJasa) {
+      const netBiaya = Math.max(0, subtotalBiaya - jsaDiskon);
       const updatedJsa: JasaPeriksaTransaction = {
         ...jsa,
         tanggal,
@@ -270,7 +274,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         jenisPemeriksaan: selectedTypes,
         subtotalBiaya,
         diskon: jsaDiskon,
-        biayaJasaPeriksa,
+        biayaJasaPeriksa: netBiaya,
         resultKananDb,
         resultKiriDb,
         resultTympanometri,

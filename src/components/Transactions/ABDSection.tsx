@@ -11,7 +11,7 @@ import {
   AksesorisInventoryEntry,
   ABDBonusItem
 } from '../../types';
-import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
+import { formatIndoDate, formatRupiah, formatPatientWithGelar, parseDateParts } from '../../utils/formatters';
 import { generateBranchInvoiceNumber, getBranchByCode, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
@@ -555,8 +555,26 @@ export const ABDSection: React.FC<ABDSectionProps> = ({
     );
     if (!matchesSearch) return false;
 
-    if (filterStartDate && t.tanggal < filterStartDate) return false;
-    if (filterEndDate && t.tanggal > filterEndDate) return false;
+    if (filterStartDate || filterEndDate) {
+      const parts = parseDateParts(t.tanggal);
+      if (parts) {
+        const itemTime = new Date(parts.year, parts.month, parts.day).getTime();
+        if (filterStartDate) {
+          const startParts = parseDateParts(filterStartDate);
+          if (startParts) {
+            const startTime = new Date(startParts.year, startParts.month, startParts.day).getTime();
+            if (itemTime < startTime) return false;
+          }
+        }
+        if (filterEndDate) {
+          const endParts = parseDateParts(filterEndDate);
+          if (endParts) {
+            const endTime = new Date(endParts.year, endParts.month, endParts.day).getTime();
+            if (itemTime > endTime) return false;
+          }
+        }
+      }
+    }
 
     return true;
   });

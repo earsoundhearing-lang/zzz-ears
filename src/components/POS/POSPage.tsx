@@ -512,7 +512,13 @@ export const POSPage: React.FC<POSPageProps> = ({
     // 1. Distribute Aksesoris, Baterai, Charger & Service items
     const aksesorisItems = cart.filter(c => c.category === 'Baterai' || c.category === 'Aksesoris & Charger' || c.category === 'Lab Earmould' || c.category === 'Servis & Reparasi' || c.category === 'Kustom');
     if (aksesorisItems.length > 0) {
-      const aksSubtotal = aksesorisItems.reduce((s, i) => s + i.subtotal, 0);
+      const aksGross = aksesorisItems.reduce((s, i) => s + (i.price * i.qty), 0);
+      const aksItemDiscounts = aksesorisItems.reduce((s, i) => s + (i.discount || 0), 0);
+      const aksProportion = cartSubtotal > 0 ? (aksGross / cartSubtotal) : 0;
+      const aksTxDiscount = Math.round(discountAmount * aksProportion);
+      const aksTotalDiscount = Math.min(aksGross, aksItemDiscounts + aksTxDiscount);
+      const aksNet = Math.max(0, aksGross - aksTotalDiscount);
+
       const aksTx: AksesorisTransaction = {
         id: `AKS-POS-${Date.now()}`,
         tanggal: today,
@@ -521,9 +527,9 @@ export const POSPage: React.FC<POSPageProps> = ({
         category: aksesorisItems[0].category === 'Baterai' ? 'Baterai Alat Bantu Dengar' : 'Multi-Item' as any,
         qty: aksesorisItems.reduce((s, i) => s + i.qty, 0),
         nomorFaktur: invoiceNumber,
-        hargaJual: aksSubtotal,
-        diskon: 0,
-        jumlah: aksSubtotal,
+        hargaJual: aksGross,
+        diskon: aksTotalDiscount,
+        jumlah: aksNet,
         payment: paymentDetails,
         branchCode: activeBranchCode,
         staffUser: currentUser.fullName || currentUser.username,
@@ -542,7 +548,13 @@ export const POSPage: React.FC<POSPageProps> = ({
     // 2. Distribute Jasa Medis items
     const jasaItems = cart.filter(c => c.category === 'Jasa Medis');
     if (jasaItems.length > 0) {
-      const jasaSubtotal = jasaItems.reduce((s, i) => s + i.subtotal, 0);
+      const jasaGross = jasaItems.reduce((s, i) => s + (i.price * i.qty), 0);
+      const jasaItemDiscounts = jasaItems.reduce((s, i) => s + (i.discount || 0), 0);
+      const jasaProportion = cartSubtotal > 0 ? (jasaGross / cartSubtotal) : 0;
+      const jasaTxDiscount = Math.round(discountAmount * jasaProportion);
+      const jasaTotalDiscount = Math.min(jasaGross, jasaItemDiscounts + jasaTxDiscount);
+      const jasaNet = Math.max(0, jasaGross - jasaTotalDiscount);
+
       const jasaTx: JasaPeriksaTransaction = {
         id: `JSA-POS-${Date.now()}`,
         tanggal: today,
@@ -552,11 +564,11 @@ export const POSPage: React.FC<POSPageProps> = ({
         jenisPemeriksaan: jasaItems.map(j => j.name as JenisPemeriksaan),
         examinationItems: jasaItems.map(j => ({
           jenis: j.name as JenisPemeriksaan,
-          biaya: j.subtotal,
+          biaya: j.price * j.qty,
         })),
-        subtotalBiaya: jasaSubtotal,
-        diskon: 0,
-        biayaJasaPeriksa: jasaSubtotal,
+        subtotalBiaya: jasaGross,
+        diskon: jasaTotalDiscount,
+        biayaJasaPeriksa: jasaNet,
         audiometris: selectedAudiometris,
         catatanHasil: transactionNotes || 'Pemeriksaan via Kasir POS',
         payment: paymentDetails,
@@ -571,6 +583,11 @@ export const POSPage: React.FC<POSPageProps> = ({
     abdItems.forEach((item, idx) => {
       const isBinaural = item.earSide === 'Binaural';
       const singleAbdPrice = item.price / (isBinaural ? 2 : 1);
+      const itemGross = item.price * item.qty;
+      const itemProportion = cartSubtotal > 0 ? (itemGross / cartSubtotal) : 0;
+      const itemTxDiscount = Math.round(discountAmount * itemProportion);
+      const itemTotalDiscount = Math.min(itemGross, (item.discount || 0) + itemTxDiscount);
+      const itemNet = Math.max(0, itemGross - itemTotalDiscount);
 
       const abdTx: ABDTransaction = {
         id: `ABD-POS-${Date.now()}-${idx}`,
@@ -591,9 +608,9 @@ export const POSPage: React.FC<POSPageProps> = ({
         jenisEarmould: item.jenisEarmould || 'S/C',
         pilihEarmould: true,
         nomorFakturPenjualan: invoiceNumber,
-        hargaJual: item.price,
-        diskon: item.discount,
-        jumlah: item.subtotal,
+        hargaJual: itemGross,
+        diskon: itemTotalDiscount,
+        jumlah: itemNet,
         uangMuka: isDP && typeof uangMuka === 'number' ? uangMuka : undefined,
         sisaPembayaran: isDP ? sisaPembayaran : 0,
         isDP: isDP,

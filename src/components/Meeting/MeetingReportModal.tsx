@@ -243,9 +243,9 @@ export const MeetingReportModal: React.FC<MeetingReportModalProps> = ({
   const periodReparasi = useMemo(() => baseReparasi.filter(r => isDateWithinRange(r.tanggalMasuk)), [baseReparasi, startDate, endDate]);
 
   // Aggregate Key Executive Numbers
-  const totalOmsetAksesoris = periodAksesoris.reduce((sum, a) => sum + (a.jumlah || 0), 0);
-  const totalOmsetJasa = periodJasaPeriksa.reduce((sum, j) => sum + (j.biayaJasaPeriksa || 0), 0);
-  const totalOmsetABD = periodABD.reduce((sum, b) => sum + (b.jumlah || 0), 0);
+  const totalOmsetAksesoris = periodAksesoris.reduce((sum, a) => sum + (a.diskon ? Math.max(0, (a.hargaJual || a.jumlah) - a.diskon + (a.ongkosKirim || 0)) : (a.jumlah || 0)), 0);
+  const totalOmsetJasa = periodJasaPeriksa.reduce((sum, j) => sum + (j.diskon ? Math.max(0, (j.subtotalBiaya || j.biayaJasaPeriksa) - j.diskon) : (j.biayaJasaPeriksa || 0)), 0);
+  const totalOmsetABD = periodABD.reduce((sum, b) => sum + (b.diskon ? Math.max(0, (b.hargaJual || b.jumlah) - b.diskon) : (b.jumlah || 0)), 0);
   const grandTotalOmset = totalOmsetAksesoris + totalOmsetJasa + totalOmsetABD;
   const totalTxCount = periodAksesoris.length + periodJasaPeriksa.length + periodABD.length;
   const aov = totalTxCount > 0 ? Math.round(grandTotalOmset / totalTxCount) : 0;

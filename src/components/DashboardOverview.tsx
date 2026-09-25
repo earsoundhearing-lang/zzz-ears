@@ -176,9 +176,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const filteredPatients = useMemo(() => patients.filter(i => isDateInRange(i.createdAt)), [patients, dateFilter, customStartDate, customEndDate]);
 
   // Calculations for Filtered Period
-  const totalAksesorisOmset = filteredAksesoris.reduce((acc, curr) => acc + (curr?.jumlah || 0), 0);
-  const totalJasaOmset = filteredJasaPeriksa.reduce((acc, curr) => acc + (curr?.biayaJasaPeriksa || 0), 0);
-  const totalAbdOmset = filteredABD.reduce((acc, curr) => acc + (curr?.jumlah || 0), 0);
+  const totalAksesorisOmset = filteredAksesoris.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon + (curr.ongkosKirim || 0)) : (curr?.jumlah || 0)), 0);
+  const totalJasaOmset = filteredJasaPeriksa.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.subtotalBiaya || curr.biayaJasaPeriksa) - curr.diskon) : (curr?.biayaJasaPeriksa || 0)), 0);
+  const totalAbdOmset = filteredABD.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon) : (curr?.jumlah || 0)), 0);
   const totalOmset = totalAksesorisOmset + totalJasaOmset + totalAbdOmset;
   const totalTxCount = filteredAksesoris.length + filteredJasaPeriksa.length + filteredABD.length;
 
@@ -196,9 +196,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const todayPatients = useMemo(() => patients.filter(i => isTodayDate(i.createdAt)), [patients]);
 
   const todayTxCount = todayAksesoris.length + todayJasa.length + todayABD.length;
-  const todayAksesorisOmset = todayAksesoris.reduce((acc, curr) => acc + (curr?.jumlah || 0), 0);
-  const todayJasaOmset = todayJasa.reduce((acc, curr) => acc + (curr?.biayaJasaPeriksa || 0), 0);
-  const todayAbdOmset = todayABD.reduce((acc, curr) => acc + (curr?.jumlah || 0), 0);
+  const todayAksesorisOmset = todayAksesoris.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon + (curr.ongkosKirim || 0)) : (curr?.jumlah || 0)), 0);
+  const todayJasaOmset = todayJasa.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.subtotalBiaya || curr.biayaJasaPeriksa) - curr.diskon) : (curr?.biayaJasaPeriksa || 0)), 0);
+  const todayAbdOmset = todayABD.reduce((acc, curr) => acc + (curr?.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon) : (curr?.jumlah || 0)), 0);
   const todayOmset = todayAksesorisOmset + todayJasaOmset + todayAbdOmset;
 
   // Active branch label
@@ -226,7 +226,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const datesMap: { [date: string]: number } = {};
   [...filteredAksesoris, ...filteredJasaPeriksa, ...filteredABD].forEach((item) => {
     const d = item.tanggal;
-    const amount = 'jumlah' in item ? item.jumlah : 'biayaJasaPeriksa' in item ? item.biayaJasaPeriksa : 0;
+    const amount = 'biayaJasaPeriksa' in item
+      ? (item.diskon ? Math.max(0, (item.subtotalBiaya || item.biayaJasaPeriksa) - item.diskon) : (item.biayaJasaPeriksa || 0))
+      : 'hargaJual' in item && item.diskon
+      ? Math.max(0, item.hargaJual - item.diskon + (('ongkosKirim' in item && item.ongkosKirim) ? item.ongkosKirim : 0))
+      : ('jumlah' in item ? (item.jumlah || 0) : 0);
     datesMap[d] = (datesMap[d] || 0) + amount;
   });
 

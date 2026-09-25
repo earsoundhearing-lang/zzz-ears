@@ -206,7 +206,7 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
         pData = { spending: 0, txCount: 0, txList: [] };
         patientTxMap.set(pId, pData);
       }
-      const aAmount = Number(a.jumlah || a.hargaJual || ((a.payment?.cashAmount || 0) + (a.payment?.transferAmount || 0)) || 0);
+      const aAmount = a.diskon ? Math.max(0, (a.hargaJual || a.jumlah) - a.diskon) : Number(a.jumlah || a.hargaJual || ((a.payment?.cashAmount || 0) + (a.payment?.transferAmount || 0)) || 0);
       pData.spending += aAmount;
       pData.txCount += 1;
       pData.txList.push({
@@ -235,17 +235,19 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
       }
 
       // Calculate the real examination nominal
-      let jAmount = Number(
-        j.biayaJasaPeriksa ||
-        (j as any).jumlah ||
-        j.subtotalBiaya ||
-        j.payment?.nominalTotal ||
-        ((j.payment?.cashAmount || 0) + (j.payment?.transferAmount || 0)) ||
-        0
-      );
+      let jAmount = j.diskon 
+        ? Math.max(0, (j.subtotalBiaya || j.biayaJasaPeriksa || (j as any).jumlah || 50000) - j.diskon)
+        : Number(
+            j.biayaJasaPeriksa ??
+            (j as any).jumlah ??
+            j.subtotalBiaya ??
+            j.payment?.nominalTotal ??
+            ((j.payment?.cashAmount || 0) + (j.payment?.transferAmount || 0)) ??
+            0
+          );
 
       // If still 0 or unrecorded, calculate from standard examination tariffs
-      if (jAmount <= 0) {
+      if (jAmount <= 0 && !j.diskon) {
         const exams = Array.isArray(j.jenisPemeriksaan) ? j.jenisPemeriksaan : (j.jenisPemeriksaan ? [j.jenisPemeriksaan] : []);
         let calc = 0;
         exams.forEach(ex => {
@@ -286,7 +288,9 @@ export const ReferalBreakdownSection: React.FC<ReferalBreakdownSectionProps> = (
         pData = { spending: 0, txCount: 0, txList: [] };
         patientTxMap.set(pId, pData);
       }
-      const aksAmount = Number(aks.jumlah || ((aks.payment?.cashAmount || 0) + (aks.payment?.transferAmount || 0)) || 0);
+      const aksAmount = aks.diskon 
+        ? Math.max(0, (aks.hargaJual || aks.jumlah) - aks.diskon + (aks.ongkosKirim || 0))
+        : Number(aks.jumlah || aks.hargaJual || ((aks.payment?.cashAmount || 0) + (aks.payment?.transferAmount || 0)) || 0);
       pData.spending += aksAmount;
       pData.txCount += 1;
       pData.txList.push({

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AksesorisTransaction, JasaPeriksaTransaction, ABDTransaction } from '../../types';
-import { formatRupiah, formatIndoDate } from '../../utils/formatters';
+import { formatRupiah, formatIndoDate, parseDateParts } from '../../utils/formatters';
 import { getBsiAccountDetails } from '../../utils/branches';
 import { 
   ResponsiveContainer, 
@@ -48,7 +48,7 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
       customer: a.namaCustomer,
       idPelanggan: a.idPelanggan,
       detail: `${a.category} (${a.subtype || ''})`,
-      jumlah: a.jumlah,
+      jumlah: a.diskon ? Math.max(0, (a.hargaJual || a.jumlah) - a.diskon + (a.ongkosKirim || 0)) : a.jumlah,
       payment: a.payment,
       refNumber: a.nomorFaktur,
     })),
@@ -59,7 +59,7 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
       customer: j.namaCustomer,
       idPelanggan: j.idPelanggan,
       detail: Array.isArray(j.jenisPemeriksaan) ? j.jenisPemeriksaan.join(', ') : (j.jenisPemeriksaan || 'Periksa'),
-      jumlah: j.biayaJasaPeriksa,
+      jumlah: j.diskon ? Math.max(0, (j.subtotalBiaya || j.biayaJasaPeriksa) - j.diskon) : j.biayaJasaPeriksa,
       payment: j.payment,
       refNumber: j.nomorKwitansi,
     })),
@@ -70,11 +70,17 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
       customer: b.namaPasien,
       idPelanggan: b.idPelanggan,
       detail: `${b.tipeABD} (${b.fittingType})`,
-      jumlah: b.jumlah,
+      jumlah: b.diskon ? Math.max(0, (b.hargaJual || b.jumlah) - b.diskon) : b.jumlah,
       payment: b.payment,
       refNumber: b.nomorFakturPenjualan,
     })),
-  ].sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  ].sort((a, b) => {
+    const parseA = parseDateParts(a.tanggal);
+    const parseB = parseDateParts(b.tanggal);
+    const timeA = parseA ? new Date(parseA.year, parseA.month, parseA.day).getTime() : new Date(a.tanggal).getTime() || 0;
+    const timeB = parseB ? new Date(parseB.year, parseB.month, parseB.day).getTime() : new Date(b.tanggal).getTime() || 0;
+    return timeB - timeA;
+  });
 
   // Calculations
   const totalOmset = combinedEntries.reduce((acc, curr) => acc + curr.jumlah, 0);
@@ -104,9 +110,9 @@ export const UangMasukReport: React.FC<UangMasukReportProps> = ({
     .reduce((acc, curr) => acc + curr.jumlah, 0);
 
   // Category totals
-  const totalAksesoris = aksesoris.reduce((acc, curr) => acc + curr.jumlah, 0);
-  const totalJasa = jasaPeriksa.reduce((acc, curr) => acc + curr.biayaJasaPeriksa, 0);
-  const totalABD = abd.reduce((acc, curr) => acc + curr.jumlah, 0);
+  const totalAksesoris = aksesoris.reduce((acc, curr) => acc + (curr.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon + (curr.ongkosKirim || 0)) : (curr.jumlah || 0)), 0);
+  const totalJasa = jasaPeriksa.reduce((acc, curr) => acc + (curr.diskon ? Math.max(0, (curr.subtotalBiaya || curr.biayaJasaPeriksa) - curr.diskon) : (curr.biayaJasaPeriksa || 0)), 0);
+  const totalABD = abd.reduce((acc, curr) => acc + (curr.diskon ? Math.max(0, (curr.hargaJual || curr.jumlah) - curr.diskon) : (curr.jumlah || 0)), 0);
 
   // Data for Charts
   const paymentChartDataRaw = [

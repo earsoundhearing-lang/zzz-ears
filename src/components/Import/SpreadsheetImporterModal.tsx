@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
   FileSpreadsheet, Upload, CheckCircle2, AlertCircle, X, ArrowRight, 
-  HelpCircle, Sparkles, Filter, Database, Copy, RefreshCw, UserCheck, Stethoscope, Trash2
+  HelpCircle, Sparkles, Filter, Database, Copy, RefreshCw, UserCheck, Stethoscope
 } from 'lucide-react';
-import { purgeJanuaryData } from '../../services/dbOperations';
 import { 
   Patient, JasaPeriksaTransaction, AksesorisTransaction, 
   ABDTransaction, ReparasiService, BranchCode, PaymentDetails, ReferalSource 
@@ -76,37 +75,6 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [activeStep, setActiveStep] = useState<'INPUT' | 'PREVIEW' | 'SUCCESS'>('INPUT');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPurging, setIsPurging] = useState(false);
-  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
-  const [purgeResult, setPurgeResult] = useState<{
-    success: boolean;
-    message: string;
-    details?: any;
-  } | null>(null);
-
-  const executePurge = async (purgeAll: boolean = false) => {
-    setPurgeConfirmOpen(false);
-    setIsPurging(true);
-    setPurgeResult(null);
-
-    try {
-      const res = await purgeJanuaryData(purgeAll);
-      setPurgeResult({
-        success: true,
-        message: purgeAll 
-          ? "Seluruh data transaksi dan customer berhasil dibersihkan dari database!" 
-          : "Seluruh data transaksi dan customer bulan Januari berhasil dibersihkan dari database!",
-        details: res
-      });
-    } catch (err: any) {
-      setPurgeResult({
-        success: false,
-        message: "Gagal menghapus data: " + (err?.message || String(err))
-      });
-    } finally {
-      setIsPurging(false);
-    }
-  };
   const [importSummary, setImportSummary] = useState<{
     patientsCreated: number;
     jasaCount: number;
@@ -738,112 +706,6 @@ export const SpreadsheetImporterModal: React.FC<SpreadsheetImporterModalProps> =
         {/* STEP 1: INPUT CONTENT */}
         {activeStep === 'INPUT' && (
           <div className="space-y-6">
-            
-            {/* Purge Data Banner & Controls */}
-            <div className="bg-rose-50 p-4 rounded-2xl border border-rose-200 space-y-3 shadow-xs">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-rose-100 text-rose-700 rounded-xl flex-shrink-0">
-                    <Trash2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-rose-900">Bersihkan / Hapus Data Bulan Januari</h4>
-                    <p className="text-xs text-rose-700 mt-0.5">
-                      Hapus transaksi & data customer yang perlu dirapikan ulang sebelum di-upload kembali.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={isPurging}
-                  onClick={() => setPurgeConfirmOpen(!purgeConfirmOpen)}
-                  className="whitespace-nowrap px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{isPurging ? 'Sedang Memproses...' : 'Hapus Seluruh Data Januari'}</span>
-                </button>
-              </div>
-
-              {/* Confirmation Card */}
-              {purgeConfirmOpen && (
-                <div className="mt-3 p-3.5 bg-white rounded-xl border border-rose-300 space-y-3 animate-fadeIn">
-                  <p className="text-xs font-bold text-rose-900">
-                    Konfirmasi Pembersihan Data Database:
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    Pilih opsi pembersihan data yang Anda inginkan. Tindakan ini akan langsung menghapus dokumen terkait dari Firebase Firestore secara permanen.
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      disabled={isPurging}
-                      onClick={() => executePurge(false)}
-                      className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
-                    >
-                      Hapus Khusus Data Januari
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPurging}
-                      onClick={() => executePurge(true)}
-                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
-                    >
-                      Hapus SELURUH Data Transaksi & Pasien
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPurgeConfirmOpen(false)}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Loading Indicator */}
-              {isPurging && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 font-medium">
-                  <RefreshCw className="w-4 h-4 text-amber-600 animate-spin flex-shrink-0" />
-                  <span>Proses pembersihan data sedang berjalan di Firestore... Mohon tunggu sebentar.</span>
-                </div>
-              )}
-
-              {/* Purge Result Display */}
-              {purgeResult && (
-                <div className={`p-3.5 rounded-xl border text-xs space-y-2 ${
-                  purgeResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-100 border-rose-300 text-rose-900'
-                }`}>
-                  <div className="flex items-center gap-2 font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span>{purgeResult.message}</span>
-                  </div>
-                  {purgeResult.details && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1 text-slate-700">
-                      <div className="bg-white/80 p-1.5 rounded border border-emerald-100">
-                        <span className="text-slate-400 block">Customer:</span>
-                        <span className="font-bold">{purgeResult.details.deletedPatientsCount} dihapus</span>
-                      </div>
-                      <div className="bg-white/80 p-1.5 rounded border border-emerald-100">
-                        <span className="text-slate-400 block">Jasa Periksa:</span>
-                        <span className="font-bold">{purgeResult.details.deletedJasaCount} dihapus</span>
-                      </div>
-                      <div className="bg-white/80 p-1.5 rounded border border-emerald-100">
-                        <span className="text-slate-400 block">Aksesoris:</span>
-                        <span className="font-bold">{purgeResult.details.deletedAksesorisCount} dihapus</span>
-                      </div>
-                      <div className="bg-white/80 p-1.5 rounded border border-emerald-100">
-                        <span className="text-slate-400 block">ABD / Earmould / Servis:</span>
-                        <span className="font-bold">
-                          {purgeResult.details.deletedABDCount + purgeResult.details.deletedEarmouldCount + purgeResult.details.deletedReparasiCount} dihapus
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Target Branch Selector */}
             <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>

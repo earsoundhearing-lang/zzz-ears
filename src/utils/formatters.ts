@@ -50,6 +50,14 @@ export function calculateAge(birthDateString: string): number {
 export function formatIndoDate(dateString: string): string {
   if (!dateString) return '-';
   try {
+    const parts = parseDateParts(dateString);
+    if (parts) {
+      const monthNamesIndo = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      return `${parts.day} ${monthNamesIndo[parts.month]} ${parts.year}`;
+    }
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString;
     return new Intl.DateTimeFormat('id-ID', {
@@ -94,17 +102,45 @@ export function parseDateParts(dateStr?: string | null): { year: number; month: 
   if (!dateStr || !dateStr.trim()) return null;
   const clean = dateStr.split('T')[0].trim();
 
-  // YYYY-MM-DD or YYYY/MM/DD
+  // 1. ISO format: YYYY-MM-DD or YYYY/MM/DD
   if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(clean)) {
     const p = clean.split(/[-/]/);
-    return {
-      year: parseInt(p[0], 10),
-      month: parseInt(p[1], 10) - 1, // 0-indexed month
-      day: parseInt(p[2], 10),
-    };
+    const y = parseInt(p[0], 10);
+    const m = parseInt(p[1], 10) - 1; // 0-indexed month
+    const d = parseInt(p[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+      return { year: y, month: m, day: d };
+    }
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
+  // 2. Text month format e.g. "1 September 2026", "01-Sep-2026", "01 September 2026", "1 Jan 2026"
+  const monthMap: { [k: string]: number } = {
+    jan: 0, januari: 0, january: 0,
+    feb: 1, februari: 1, february: 1,
+    mar: 2, maret: 2, march: 2,
+    apr: 3, april: 3,
+    mei: 4, may: 4,
+    jun: 5, juni: 5, june: 5,
+    jul: 6, juli: 6, july: 6,
+    agu: 7, agust: 7, agustus: 7, aug: 7, august: 7,
+    sep: 8, sept: 8, september: 8,
+    okt: 9, oktober: 9, oct: 9, october: 9,
+    nov: 10, november: 10,
+    des: 11, desember: 11, dec: 11, december: 11,
+  };
+
+  const textMatch = clean.match(/^(\d{1,2})[\s\/-]+([a-zA-Z]+)[\s\/-]+(\d{2,4})$/);
+  if (textMatch) {
+    const d = parseInt(textMatch[1], 10);
+    const mKey = textMatch[2].toLowerCase();
+    let y = parseInt(textMatch[3], 10);
+    if (y < 100) y += 2000;
+    if (monthMap[mKey] !== undefined && d >= 1 && d <= 31) {
+      return { year: y, month: monthMap[mKey], day: d };
+    }
+  }
+
+  // 3. DD/MM/YYYY or DD-MM-YYYY (Indonesian standard)
   if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(clean)) {
     const p = clean.split(/[-/]/);
     let d = parseInt(p[0], 10);
@@ -117,8 +153,22 @@ export function parseDateParts(dateStr?: string | null): { year: number; month: 
       d = m + 1;
       m = temp - 1;
     }
-    return { year: y, month: m, day: d };
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) && m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+      return { year: y, month: m, day: d };
+    }
   }
+
+  // 4. Fallback to Javascript standard Date parsing
+  try {
+    const d = new Date(clean);
+    if (!isNaN(d.getTime())) {
+      return {
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        day: d.getDate(),
+      };
+    }
+  } catch (e) {}
 
   return null;
 }

@@ -591,42 +591,13 @@ const deduplicatePatientsList = (list: Patient[]): Patient[] => {
   return uniqueList;
 };
 
-// Helper to sanitize imported transactions that incorrectly got defaulted to today's date
-const sanitizeImportedList = <T extends { id: string; tanggal?: string; nomorKwitansi?: string; nomorFaktur?: string; [key: string]: any }>(
+// Helper to sanitize imported transactions - preserves all original transaction dates intact
+const sanitizeImportedList = <T extends { id: string; tanggal?: string; [key: string]: any }>(
   list: T[],
-  storageKey: string
+  _storageKey: string
 ): T[] => {
   if (!Array.isArray(list) || list.length === 0) return list;
-
-  const todayStr = getTodayDateString();
-  let modified = false;
-
-  const cleaned = list.map((item) => {
-    const isImported = (item.id && String(item.id).includes('-IMP-')) || 
-                       (item.nomorKwitansi && String(item.nomorKwitansi).includes('-IMP-')) || 
-                       (item.nomorFaktur && String(item.nomorFaktur).includes('-IMP-'));
-    
-    if (isImported) {
-      const cleanDate = item.tanggal ? String(item.tanggal).split('T')[0].trim() : '';
-      
-      // If an imported transaction was saved with today's date (2026-09-22) or missing date
-      if (cleanDate === todayStr || cleanDate === '2026-09-22' || !cleanDate) {
-        modified = true;
-        // Shift its date back to historical January 2, 2026 (the spreadsheet import batch date)
-        return {
-          ...item,
-          tanggal: '2026-01-02'
-        };
-      }
-    }
-    return item;
-  });
-
-  if (modified) {
-    setToStorage(storageKey, cleaned);
-  }
-
-  return cleaned;
+  return list;
 };
 
 // Aksesoris

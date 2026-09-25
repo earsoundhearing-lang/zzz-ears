@@ -8,7 +8,7 @@ import {
   AppUser,
   AudiogramData
 } from '../../types';
-import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
+import { formatIndoDate, formatRupiah, formatPatientWithGelar, parseDateParts } from '../../utils/formatters';
 import { generateKwitansiNumber, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
@@ -335,8 +335,26 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
 
     if (filterPotensialOnly && !t.adaFittingABD && !t.catatanHAC && !t.potensiPembelian) return false;
 
-    if (filterStartDate && t.tanggal < filterStartDate) return false;
-    if (filterEndDate && t.tanggal > filterEndDate) return false;
+    if (filterStartDate || filterEndDate) {
+      const parts = parseDateParts(t.tanggal);
+      if (parts) {
+        const itemTime = new Date(parts.year, parts.month, parts.day).getTime();
+        if (filterStartDate) {
+          const startParts = parseDateParts(filterStartDate);
+          if (startParts) {
+            const startTime = new Date(startParts.year, startParts.month, startParts.day).getTime();
+            if (itemTime < startTime) return false;
+          }
+        }
+        if (filterEndDate) {
+          const endParts = parseDateParts(filterEndDate);
+          if (endParts) {
+            const endTime = new Date(endParts.year, endParts.month, endParts.day).getTime();
+            if (itemTime > endTime) return false;
+          }
+        }
+      }
+    }
 
     return true;
   });
@@ -692,7 +710,11 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
                   required
                   min={0}
                   value={biayaJasaPeriksa}
-                  onChange={(e) => setBiayaJasaPeriksa(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const finalVal = parseInt(e.target.value) || 0;
+                    setBiayaJasaPeriksa(finalVal);
+                    setDiskon(Math.max(0, subtotalBiaya - finalVal));
+                  }}
                   className="w-full bg-white border border-indigo-200 rounded-xl p-2 text-xs font-black text-[#23277A] focus:ring-2 focus:ring-[#23277A]"
                 />
               </div>
@@ -1034,14 +1056,16 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
                   <span className="font-semibold text-slate-700">{t.audiometris}</span>
                 </div>
                 {t.diskon ? (
-                  <div className="flex justify-between text-[11px] text-rose-600">
+                  <div className="flex justify-between text-[11px] text-rose-600 font-bold">
                     <span>Diskon:</span>
                     <span>-{formatRupiah(t.diskon)}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between pt-1 border-t border-slate-200 font-bold text-[#23277A]">
                   <span>Total Bayar:</span>
-                  <span className="text-sm font-black">{formatRupiah(t.biayaJasaPeriksa)}</span>
+                  <span className="text-sm font-black">
+                    {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || t.biayaJasaPeriksa) - t.diskon) : t.biayaJasaPeriksa)}
+                  </span>
                 </div>
               </div>
 
@@ -1194,11 +1218,13 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
                       <div className="font-bold text-slate-800">{t.audiometris}</div>
                     </td>
                     <td className="p-3.5 text-right whitespace-nowrap">
-                      <div className="text-slate-600">{formatRupiah(t.subtotalBiaya || t.biayaJasaPeriksa)}</div>
+                      <div className="text-slate-600 font-medium">
+                        {formatRupiah(t.subtotalBiaya || (t.diskon ? t.biayaJasaPeriksa + t.diskon : t.biayaJasaPeriksa))}
+                      </div>
                       {t.diskon ? <div className="text-[10px] text-rose-600 font-bold">Disc: -{formatRupiah(t.diskon)}</div> : null}
                     </td>
                     <td className="p-3.5 text-right font-black text-[#23277A] whitespace-nowrap">
-                      {formatRupiah(t.biayaJasaPeriksa)}
+                      {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || t.biayaJasaPeriksa) - t.diskon) : t.biayaJasaPeriksa)}
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       <span

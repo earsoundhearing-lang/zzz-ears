@@ -15,7 +15,7 @@ import {
   AksesorisInventoryEntry,
   ABDInventoryEntry
 } from '../../types';
-import { formatIndoDate, formatRupiah, formatPatientWithGelar } from '../../utils/formatters';
+import { formatIndoDate, formatRupiah, formatPatientWithGelar, parseDateParts } from '../../utils/formatters';
 import { generateBranchInvoiceNumber, BRANCHES, getDefaultBsiAccount } from '../../utils/branches';
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
@@ -465,7 +465,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       alert('Mohon tambahkan minimal 1 item aksesoris ke dalam keranjang belanja.');
       return;
     }
-    if (cartItems.some(i => i.harga < 0 || i.qty <= 0 || i.subtotal < 0)) {
+    if (cartItems.some(i => i.hargaJual < 0 || i.qty <= 0 || i.subtotal < 0)) {
       alert('Harga item tidak boleh negatif dan Kuantitas (Qty) minimal 1.');
       return;
     }
@@ -588,8 +588,26 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     );
     if (!matchesSearch) return false;
 
-    if (filterStartDate && t.tanggal < filterStartDate) return false;
-    if (filterEndDate && t.tanggal > filterEndDate) return false;
+    if (filterStartDate || filterEndDate) {
+      const parts = parseDateParts(t.tanggal);
+      if (parts) {
+        const itemTime = new Date(parts.year, parts.month, parts.day).getTime();
+        if (filterStartDate) {
+          const startParts = parseDateParts(filterStartDate);
+          if (startParts) {
+            const startTime = new Date(startParts.year, startParts.month, startParts.day).getTime();
+            if (itemTime < startTime) return false;
+          }
+        }
+        if (filterEndDate) {
+          const endParts = parseDateParts(filterEndDate);
+          if (endParts) {
+            const endTime = new Date(endParts.year, endParts.month, endParts.day).getTime();
+            if (itemTime > endTime) return false;
+          }
+        }
+      }
+    }
 
     return true;
   });
@@ -1070,7 +1088,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                       </td>
                       <td className="p-2.5 text-center font-bold">{item.qty}</td>
                       <td className="p-2.5 text-right">{formatRupiah(item.hargaJual)}</td>
-                      <td className="p-2.5 text-right font-bold text-[#23277A]">{formatRupiah(item.jumlah)}</td>
+                      <td className="p-2.5 text-right font-bold text-[#23277A]">{formatRupiah(item.subtotal)}</td>
                       <td className="p-2.5 text-center">
                         <button
                           type="button"

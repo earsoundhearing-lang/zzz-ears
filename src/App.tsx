@@ -50,7 +50,7 @@ import {
   DEFAULT_USERS
 } from './utils/storage';
 import { useFirestoreCollections } from './hooks/useFirestoreCollections';
-import { dbOps, inventoryDbOps, purgeJanuaryData } from './services/dbOperations';
+import { dbOps, inventoryDbOps } from './services/dbOperations';
 import { generateBundlingInventoryEntries } from './utils/bundlingInventory';
 import { findABDSku, findAksesorisSku, getAksesorisBySku } from './data/skuCatalog';
 import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus } from './utils/sonicAmplifierHelper';
@@ -74,17 +74,6 @@ export default function App() {
       setActiveTab('inventori');
     }
   }, [currentUser, activeTab]);
-
-  // Purge January transactions & patients as requested by user
-  useEffect(() => {
-    const purgeKey = 'earsound_purged_jan_v1';
-    if (!localStorage.getItem(purgeKey)) {
-      purgeJanuaryData().then((res) => {
-        localStorage.setItem(purgeKey, 'true');
-        console.log("Purged January data on startup:", res);
-      }).catch(err => console.error("Purge Jan error:", err));
-    }
-  }, []);
 
   // State Management (Real-time from Firestore)
   const { users, patients, aksesoris, jasaPeriksa, abd, earmould, reparasi, kasKecil, inventoryABD, inventoryAksesoris, crmNotes, loading, error } = useFirestoreCollections();
