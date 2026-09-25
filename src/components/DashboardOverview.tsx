@@ -203,6 +203,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
   // Active branch label
   const isHQ = currentUser?.branchCode === 'HQ' || currentUser?.role === 'CEO' || currentUser?.branchCode === 'ALL';
+  const isCEO = currentUser?.role === 'CEO';
   const activeBranchName = isHQ 
     ? (selectedBranch === 'ALL' ? 'Semua 8 Cabang (Konsolidasi Pusat)' : `Cabang ${BRANCHES.find(b=>b.code===selectedBranch)?.name || selectedBranch}`)
     : `Cabang ${BRANCHES.find(b=>b.code===currentUser?.branchCode)?.name || currentUser?.branchCode}`;
@@ -601,17 +602,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       />
 
       {/* ======================================================== */}
-      {/* 2. QUESTION 9: PERFORMA & PERBANDINGAN 8 CABANG EARSOUND */}
+      {/* 2. QUESTION 9: PERFORMA & PERBANDINGAN 8 CABANG EARSOUND (KHUSUS CEO) */}
       {/* ======================================================== */}
-      <BranchPerformanceSection
-        allPatients={filteredPatients}
-        allAksesoris={filteredAksesoris}
-        allJasaPeriksa={filteredJasaPeriksa}
-        allABD={filteredABD}
-        allEarmould={filteredEarmould}
-        allReparasi={filteredReparasi}
-        activeBranchFilter={selectedBranch}
-      />
+      {isCEO && (
+        <BranchPerformanceSection
+          allPatients={filteredPatients}
+          allAksesoris={filteredAksesoris}
+          allJasaPeriksa={filteredJasaPeriksa}
+          allABD={filteredABD}
+          allEarmould={filteredEarmould}
+          allReparasi={filteredReparasi}
+          activeBranchFilter={selectedBranch}
+        />
+      )}
 
       {/* ======================================================== */}
       {/* 3. QUESTION 8: PEKERJAAN SERVICE / LAB OUTSTANDING       */}
@@ -623,44 +626,48 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       />
 
       {/* ======================================================== */}
-      {/* 4. QUESTION 7: KONDISI & KESEHATAN STOK INVENTORI        */}
+      {/* 4. QUESTION 7: KONDISI & KESEHATAN STOK INVENTORI (KHUSUS CEO) */}
       {/* ======================================================== */}
-      <StockConditionSection
-        inventoryABD={inventoryABD}
-        inventoryAksesoris={inventoryAksesoris}
-        setActiveTab={setActiveTab}
-      />
+      {isCEO && (
+        <StockConditionSection
+          inventoryABD={inventoryABD}
+          inventoryAksesoris={inventoryAksesoris}
+          setActiveTab={setActiveTab}
+        />
+      )}
 
       {/* ======================================================== */}
-      {/* 5. QUESTIONS 5 & 6: PERSENTASE REFERAL & PRODUK TERJUAL   */}
+      {/* 5. QUESTIONS 5 & 6: PERSENTASE REFERAL & PRODUK TERJUAL (KHUSUS CEO) */}
       {/* ======================================================== */}
-      <div className="space-y-6">
-        {/* 5. Persentase Sumber Referal & Analisis Efektivitas Marketing */}
-        <ReferalBreakdownSection
-          patients={filteredPatients}
-          jasaPeriksa={filteredJasaPeriksa}
-          abd={filteredABD}
-          aksesoris={filteredAksesoris}
-          earmould={filteredEarmould}
-          reparasi={filteredReparasi}
-          onOpenMeetingReport={() => {
-            const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
-            setMeetingPeriodType(mapMode);
-            setIsMeetingReportOpen(true);
-          }}
-        />
+      {isCEO && (
+        <div className="space-y-6">
+          {/* 5. Persentase Sumber Referal & Analisis Efektivitas Marketing */}
+          <ReferalBreakdownSection
+            patients={filteredPatients}
+            jasaPeriksa={filteredJasaPeriksa}
+            abd={filteredABD}
+            aksesoris={filteredAksesoris}
+            earmould={filteredEarmould}
+            reparasi={filteredReparasi}
+            onOpenMeetingReport={() => {
+              const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
+              setMeetingPeriodType(mapMode);
+              setIsMeetingReportOpen(true);
+            }}
+          />
 
-        {/* 6. Persentase Produk Fisik Terjual */}
-        <ProductSalesBreakdownSection
-          aksesoris={filteredAksesoris}
-          abd={filteredABD}
-          onOpenMeetingReport={() => {
-            const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
-            setMeetingPeriodType(mapMode);
-            setIsMeetingReportOpen(true);
-          }}
-        />
-      </div>
+          {/* 6. Persentase Produk Fisik Terjual */}
+          <ProductSalesBreakdownSection
+            aksesoris={filteredAksesoris}
+            abd={filteredABD}
+            onOpenMeetingReport={() => {
+              const mapMode: MeetingPeriodType = dateFilter === 'week' ? 'mingguan' : dateFilter === 'today' ? 'mingguan' : dateFilter === 'custom' ? 'kustom' : 'bulanan';
+              setMeetingPeriodType(mapMode);
+              setIsMeetingReportOpen(true);
+            }}
+          />
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* 6. CHARTS & RECENT TRANSACTIONS STREAM                   */}
