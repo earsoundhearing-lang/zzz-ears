@@ -179,6 +179,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Fatahillah Sp.THT',
 
   // --- Wilayah AC (Aceh) ---
+  'dr. Afrizal Sp.THT (AC)',
   'dr. Gilbran,Sp.THT (AC)',
   'dr. Suherman Sp.THT (AC)',
   'dr. Andil Mulya, Sp.THT (AC)',
@@ -264,6 +265,9 @@ export const matchOfficialDoctorName = (raw: string | undefined | null): string 
   // Direct keyword mappings for common shorthand names
   if (lower.includes('marojahan') || lower.includes('pandiangan')) {
     return 'dr. Marojahan Pandiangan Sp.THT-KL (SU)';
+  }
+  if (lower.includes('afrizal')) {
+    return 'dr. Afrizal Sp.THT (AC)';
   }
   if (lower.includes('irnanda') || lower.includes('warda')) {
     return 'dr. Irnanda Warda Rizki Nasution Sp.THT (SU)';

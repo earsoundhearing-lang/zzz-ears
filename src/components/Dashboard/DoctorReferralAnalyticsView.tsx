@@ -97,6 +97,7 @@ export const DoctorReferralAnalyticsView: React.FC<DoctorReferralAnalyticsViewPr
   // Extract region from doctor name or hospital (e.g. "(SU)", "(JB)", "Medan", "Jambi")
   const extractRegion = (docName: string, hospName?: string): string => {
     const text = `${docName} ${hospName || ''}`.toUpperCase();
+    if (text.includes('(AC)') || text.includes('ACEH')) return 'AC';
     if (text.includes('(SU)') || text.includes('SUMUT') || text.includes('MEDAN')) return 'SU';
     if (text.includes('(JB)') || text.includes('JAMBI')) return 'JB';
     if (text.includes('(PB)') || text.includes('PADANG') || text.includes('BULAN')) return 'PB';
@@ -111,6 +112,7 @@ export const DoctorReferralAnalyticsView: React.FC<DoctorReferralAnalyticsViewPr
   // Helper to get region badge label
   const getRegionBadge = (regionCode: string) => {
     const map: Record<string, { label: string; color: string }> = {
+      AC: { label: 'AC (Aceh)', color: 'bg-amber-100 text-amber-800 border-amber-200' },
       SU: { label: 'SU (Medan / Sumut)', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
       JB: { label: 'JB (Jambi)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
       PB: { label: 'PB (Padang)', color: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -243,6 +245,7 @@ export const DoctorReferralAnalyticsView: React.FC<DoctorReferralAnalyticsViewPr
   // Regional Distribution Data
   const regionData = useMemo(() => {
     const regionMap: Record<string, { region: string; label: string; count: number; omset: number; patients: number; sales: number }> = {
+      AC: { region: 'AC', label: 'Aceh', count: 0, omset: 0, patients: 0, sales: 0 },
       SU: { region: 'SU', label: 'Sumatera Utara (Medan)', count: 0, omset: 0, patients: 0, sales: 0 },
       JB: { region: 'JB', label: 'Jambi', count: 0, omset: 0, patients: 0, sales: 0 },
       PB: { region: 'PB', label: 'Padang / Sumbar', count: 0, omset: 0, patients: 0, sales: 0 },
@@ -432,7 +435,7 @@ export const DoctorReferralAnalyticsView: React.FC<DoctorReferralAnalyticsViewPr
               <Filter className="w-3 h-3 text-slate-400" />
               <span>Wilayah:</span>
             </span>
-            {(['ALL', 'SU', 'JB', 'PB', 'BT', 'PK', 'LS', 'BJ', 'ST'] as const).map(reg => (
+            {(['ALL', 'SU', 'AC', 'JB', 'PB', 'BT', 'PK', 'LS', 'BJ', 'ST'] as const).map(reg => (
               <button
                 key={reg}
                 onClick={() => setRegionFilter(reg)}
