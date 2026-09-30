@@ -10,6 +10,7 @@ import {
   Volume2
 } from 'lucide-react';
 import { ABDInventoryEntry, AksesorisInventoryEntry } from '../../types';
+import { isNonStockItem } from '../../data/skuCatalog';
 import { NavTab } from '../Header';
 
 interface StockConditionSectionProps {
@@ -58,6 +59,7 @@ export const StockConditionSection: React.FC<StockConditionSectionProps> = ({
     const map: { [key: string]: { kategori: string; tipe: string; inStock: number; totalIn: number; totalSold: number } } = {};
 
     inventoryAksesoris.forEach((item) => {
+      if (isNonStockItem(item.tipe, item.kategori)) return;
       const key = `${item.kategori} - ${item.tipe}`;
       if (!map[key]) {
         map[key] = {

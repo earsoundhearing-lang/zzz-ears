@@ -127,7 +127,7 @@ export const MASTER_AKSESORIS_SKU_LIST: AksesorisSkuItem[] = [
   { sku: 'RDDSK', nama: 'Charger RADIANT Desk', kategori: 'Charger ABD', aliases: ['Charger, RADIANT Desk', 'Radiant Desk Charger'], harga: 2100000 },
   
   // Spare Part dan Service
-  { sku: 'CLN01', nama: 'Clean Alat', kategori: 'Spare Part dan Service', aliases: ['Clean Alat', 'Clean Alat Bantu Dengar', 'Pembersihan Alat', 'Cleaning Alat', 'Service Clean Alat'], harga: 50000 },
+  { sku: 'CLN01', nama: 'Clean Alat', kategori: 'Spare Part dan Service', aliases: ['Clean Alat', 'Clean Alat Bantu Dengar', 'Pembersihan Alat', 'Cleaning Alat', 'Service Clean Alat'], harga: 300000 },
   { sku: 'MIC01', nama: 'Mic Signia / AS / Rexton', kategori: 'Spare Part dan Service', aliases: ['Mic Signia, AS, Rexton', 'Mic Signia', 'Mic AS', 'Mic Rexton'], harga: 800000 },
   { sku: 'RCV01', nama: 'Receiver Signia / AS / Rexton', kategori: 'Spare Part dan Service', aliases: ['Receiver Signia, AS, Rexton', 'Receiver Signia', 'Receiver AS', 'Receiver Rexton'], harga: 1000000 },
   { sku: 'SPKMF', nama: 'miniFit Speaker', kategori: 'Spare Part dan Service', aliases: ['miniFit Speaker', 'Speaker miniFit'], harga: 750000 },
@@ -311,5 +311,39 @@ export function findMasterAksesoris(namaOrTipe?: string, kategori?: string): Aks
     return getAksesorisBySku(sku);
   }
   return undefined;
+}
+
+/**
+ * Determines whether an accessory, service, or custom item does NOT require physical warehouse inventory stock.
+ * Clean Alat (pembersihan ABD), Earmould (custom cetak lab), and services do NOT require physical inventory stock.
+ */
+export function isNonStockItem(subtypeOrNama?: string, kategori?: string): boolean {
+  if (!subtypeOrNama && !kategori) return false;
+  const sub = cleanStr(subtypeOrNama);
+  const cat = cleanStr(kategori);
+
+  // Earmould is custom lab made, no branch warehouse inventory required
+  if (cat.includes('earmould') || sub.includes('earmould')) return true;
+
+  // Clean alat is a service / maintenance procedure, strictly does not require physical inventory stock
+  if (sub.includes('clean') || sub.includes('pembersihan')) return true;
+
+  // Physical spare parts (microphones, receivers, speakers, amplifiers) still require physical stock
+  const isPhysicalSparePart = 
+    sub.includes('amplifier') || 
+    sub.includes('mic') || 
+    sub.includes('receiver') || 
+    sub.includes('speaker') || 
+    sub.includes('minifit');
+
+  if (isPhysicalSparePart) {
+    return false;
+  }
+
+  // Service categories and general non-physical services
+  if (cat === 'service alat bantu dengar') return true;
+  if (sub.includes('jasa') || sub.includes('clean') || sub.includes('service')) return true;
+
+  return false;
 }
 

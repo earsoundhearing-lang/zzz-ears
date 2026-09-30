@@ -163,7 +163,7 @@ export const CATALOG_AKSESORIS_SERVICE: CatalogItem[] = [
   { sku: 'RDDSK', kategori: 'Charger ABD', nama: 'Charger RADIANT Desk', harga: 2100000 },
   
   // Spare Part dan Service
-  { sku: 'CLN01', kategori: 'Spare Part dan Service', nama: 'Clean Alat', harga: 50000 },
+  { sku: 'CLN01', kategori: 'Spare Part dan Service', nama: 'Clean Alat', harga: 300000 },
   { sku: 'MIC01', kategori: 'Spare Part dan Service', nama: 'Mic Signia / AS / Rexton', harga: 800000 },
   { sku: 'RCV01', kategori: 'Spare Part dan Service', nama: 'Receiver Signia / AS / Rexton', harga: 1000000 },
   { sku: 'SPKMF', kategori: 'Spare Part dan Service', nama: 'miniFit Speaker', harga: 750000 },

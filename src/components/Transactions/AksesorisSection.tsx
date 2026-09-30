@@ -20,7 +20,7 @@ import { generateBranchInvoiceNumber, BRANCHES, getDefaultBsiAccount } from '../
 import { generateWhatsAppReceiptMessage, openWhatsAppWithReceipt } from '../../utils/whatsappHelper';
 import { PaymentSelector } from './PaymentSelector';
 import { CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, CatalogItem } from '../../data/priceCatalog';
-import { findAksesorisSku, getAksesorisBySku, findABDSku } from '../../data/skuCatalog';
+import { findAksesorisSku, getAksesorisBySku, findABDSku, isNonStockItem } from '../../data/skuCatalog';
 import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus, getAvailableSonicABDStock, getAvailableABDStockInBranch } from '../../utils/sonicAmplifierHelper';
 import { ShoppingBag, Plus, Trash2, Search, Printer, ShoppingCart, UserCheck, ShieldCheck, Tag, X, PackageCheck, Edit3, MessageSquare, AlertCircle } from 'lucide-react';
 import { PinVerificationModal } from '../Common/PinVerificationModal';
@@ -343,7 +343,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
     } else if (newCat === 'Service Alat Bantu Dengar' || newCat === 'Spare Part dan Service') {
       const cleanItem = SPAREPART_SERVICE_SUBTYPES.find(i => i.nama.toLowerCase().includes('clean')) || SPAREPART_SERVICE_SUBTYPES[0];
       setSubtype(cleanItem ? cleanItem.nama : 'Clean Alat');
-      setHargaJual(cleanItem ? cleanItem.harga : 50000);
+      setHargaJual(cleanItem ? cleanItem.harga : 300000);
     } else if (newCat === 'Selang Soft') {
       setSubtype('Selang Soft');
       setHargaJual(15000);
@@ -401,11 +401,10 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
           : `${jenisEarmould} (${sisiEarmould})`)
       : subtype;
 
-    const isEarmould = category === 'Earmould';
-    const isService = category === 'Spare Part dan Service' && subtype.toLowerCase().includes('jasa');
+    const isExemptFromStock = isNonStockItem(subtype, category);
 
-    // Physical stock check (Earmould & Service Jasa are custom on-demand, no inventory stock required)
-    if (!isEarmould && !isService) {
+    // Physical stock check (Earmould, Clean Alat, and Service Jasa are on-demand/services, no inventory stock required)
+    if (!isExemptFromStock) {
       const availableStock = getBranchStock(subtype, category);
 
       const targetSku = findAksesorisSku(subtype, category);
@@ -479,9 +478,9 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       return;
     }
 
-    // Strict validation: Re-verify that all physical cart items are in stock in activeBranchCode
+    // Strict validation: Re-verify that all physical cart items are in stock in activeBranchCode (Clean Alat, Earmould & Service exempt)
     for (const item of cartItems) {
-      if (item.category !== 'Earmould' && !(item.category === 'Spare Part dan Service' && item.subtype.toLowerCase().includes('jasa'))) {
+      if (!isNonStockItem(item.subtype, item.category)) {
         const avail = getBranchStock(item.subtype, item.category);
         if (item.qty > avail) {
           alert(`STOK TIDAK MENCUKUPI!\n\nProduk [${item.subtype}] di Gudang Cabang [${activeBranchCode}] tersisa ${avail} Pcs, namun di keranjang terdapat ${item.qty} Pcs.\n\nHanya stok yang ada di gudang cabang ini yang dapat ditransaksikan.`);
@@ -988,9 +987,9 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                       <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-300 font-bold flex items-center gap-1">
                         👂 Custom Cetak Lab (Tanpa Batas Stok)
                       </span>
-                    ) : (category === 'Spare Part dan Service' && subtype.toLowerCase().includes('jasa')) ? (
+                    ) : isNonStockItem(subtype, category) ? (
                       <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-300 font-bold flex items-center gap-1">
-                        🛠️ Jasa Service
+                        🛠️ Layanan / Clean Alat (Tanpa Perlu Stok)
                       </span>
                     ) : getBranchStock(subtype, category) > 0 ? (
                       <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold font-mono">
@@ -1003,8 +1002,8 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                     )}
                   </div>
 
-                  {/* If stock in active branch is 0 but exists in other branches */}
-                  {getBranchStock(subtype, category) === 0 && getOtherBranchesStockInfo(subtype, category) && (
+                  {/* If stock in active branch is 0 but exists in other branches (only for physical goods) */}
+                  {!isNonStockItem(subtype, category) && getBranchStock(subtype, category) === 0 && getOtherBranchesStockInfo(subtype, category) && (
                     <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] text-indigo-900 font-semibold flex items-start gap-1.5">
                       <span className="text-indigo-600 font-bold">ℹ️ Info Stok Cabang Lain:</span>
                       <span>Barang ini tersedia {getOtherBranchesStockInfo(subtype, category)}. Silakan lakukan Mutasi Stok ke cabang [{activeBranchCode}] atau ubah cabang transaksi.</span>
@@ -1014,6 +1013,11 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                 {category === 'Earmould' && (
                   <p className="text-[10px] text-purple-700 mt-1 font-medium bg-purple-50/70 px-2 py-1 rounded-md border border-purple-200/70">
                     ℹ️ Earmould adalah produk custom yang diproduksi di Lab Earmould, tidak memerlukan stok fisik inventori di cabang.
+                  </p>
+                )}
+                {isNonStockItem(subtype, category) && category !== 'Earmould' && (
+                  <p className="text-[10px] text-blue-700 mt-1 font-medium bg-blue-50/70 px-2 py-1 rounded-md border border-blue-200/70">
+                    ℹ️ {subtype} adalah layanan pengerjaan service / pembersihan alat, tidak memerlukan stok fisik inventori.
                   </p>
                 )}
               </div>

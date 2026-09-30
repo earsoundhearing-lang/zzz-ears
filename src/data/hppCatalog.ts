@@ -99,6 +99,7 @@ export const MASTER_HPP_AKSESORIS: Record<string, { nama: string; kategori: stri
   A1DSK: { nama: 'Charger A1 Desk', kategori: 'Charger ABD', hpp: 2750000 },
   RDDSK: { nama: 'Charger RADIANT Desk', kategori: 'Charger ABD', hpp: 1500000 },
 
+  CLN01: { nama: 'Clean Alat', kategori: 'Spare Part dan Service', hpp: 0 },
   MIC01: { nama: 'Mic Signia / AS / Rexton', kategori: 'Spare Part dan Service', hpp: 400000 },
   RCV01: { nama: 'Receiver Signia / AS / Rexton', kategori: 'Spare Part dan Service', hpp: 400000 },
   SPKMF: { nama: 'miniFit Speaker', kategori: 'Spare Part dan Service', hpp: 500000 },

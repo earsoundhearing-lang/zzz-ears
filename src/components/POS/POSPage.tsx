@@ -20,6 +20,7 @@ import {
   EarmouldSide
 } from '../../types';
 import { ABD_PRICE_CATALOG, CATALOG_AKSESORIS_SERVICE, PAKET_BUNDLING, ABDPriceItem } from '../../data/priceCatalog';
+import { isNonStockItem } from '../../data/skuCatalog';
 import { formatIndoDate, formatRupiah } from '../../utils/formatters';
 import { 
   BRANCHES, 
@@ -250,6 +251,9 @@ export const POSPage: React.FC<POSPageProps> = ({
 
   // Stock calculation helper for current branch
   const getBranchStock = (itemName: string, category: POSItemCategory) => {
+    if (isNonStockItem(itemName, category)) {
+      return null;
+    }
     if (category === 'Alat Bantu Dengar') {
       const inStock = inventoryABD
         .filter(inv => inv.branchCode === activeBranchCode && inv.tipeABD.toLowerCase().includes(itemName.split(' ')[0].toLowerCase()))
@@ -313,8 +317,11 @@ export const POSPage: React.FC<POSPageProps> = ({
       return;
     }
 
-    // Standard item add (Lab Earmould & Servis are custom-made on demand, no inventory stock required)
-    const isCustomOnDemand = product.category === 'Lab Earmould' || product.category === 'Servis & Reparasi' || product.category === 'Kustom';
+    // Standard item add (Lab Earmould & Servis / Clean Alat are custom-made on demand, no inventory stock required)
+    const isCustomOnDemand = product.category === 'Lab Earmould' || 
+                             product.category === 'Servis & Reparasi' || 
+                             product.category === 'Kustom' ||
+                             isNonStockItem(product.name, product.category);
     const currentStock = isCustomOnDemand ? null : getBranchStock(product.name, product.category);
     if (!isCustomOnDemand && currentStock !== null && currentStock <= 0) {
       alert(`STOK TIDAK TERSEDIA!\n\nProduk "${product.name}" di Gudang Cabang [${activeBranchCode}] saat ini KOSONG (0 Pcs).\n\nHanya stok yang ada di gudang cabang yang dapat ditransaksikan.`);

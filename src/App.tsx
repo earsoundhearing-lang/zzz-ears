@@ -52,7 +52,7 @@ import {
 import { useFirestoreCollections } from './hooks/useFirestoreCollections';
 import { dbOps, inventoryDbOps } from './services/dbOperations';
 import { generateBundlingInventoryEntries } from './utils/bundlingInventory';
-import { findABDSku, findAksesorisSku, getAksesorisBySku } from './data/skuCatalog';
+import { findABDSku, findAksesorisSku, getAksesorisBySku, isNonStockItem } from './data/skuCatalog';
 import { isSonicAmplifierSubtype, getSonicAmplifierTargetSkus } from './utils/sonicAmplifierHelper';
 
 import { LoginPage } from './components/LoginPage';
@@ -329,10 +329,10 @@ export default function App() {
     
     dbOps.saveAksesoris(txWithBranch);
 
-    // Inventory Aksesoris & ABD Spare Part replacement (Earmould is custom lab fabrication, exempt from physical inventory stock)
+    // Inventory Aksesoris & ABD Spare Part replacement (Earmould, Clean Alat, and services are exempt from physical inventory stock)
     if (tx.items && tx.items.length > 0) {
       tx.items.forEach((item, idx) => {
-        if (item.category === 'Earmould' || (item.category === 'Spare Part dan Service' && item.subtype.toLowerCase().includes('jasa'))) {
+        if (isNonStockItem(item.subtype, item.category)) {
           return;
         }
         if (item.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(item.subtype)) {
@@ -381,7 +381,7 @@ export default function App() {
         };
         inventoryDbOps.saveInventoryAksesoris(invAks);
       });
-    } else if (tx.category !== 'Earmould' && !(tx.category === 'Spare Part dan Service' && tx.subtype.toLowerCase().includes('jasa'))) {
+    } else if (!isNonStockItem(tx.subtype, tx.category)) {
       if (tx.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(tx.subtype)) {
         const targetSkus = getSonicAmplifierTargetSkus(tx.subtype);
         let resolvedSku = targetSkus[0] || 'E2OBD';
@@ -500,7 +500,7 @@ export default function App() {
 
       if (updatedTx.items && updatedTx.items.length > 0) {
         updatedTx.items.forEach((item, idx) => {
-          if (item.category === 'Earmould' || (item.category === 'Spare Part dan Service' && item.subtype.toLowerCase().includes('jasa'))) {
+          if (isNonStockItem(item.subtype, item.category)) {
             return;
           }
           if (item.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(item.subtype)) {
@@ -549,7 +549,7 @@ export default function App() {
           };
           inventoryDbOps.saveInventoryAksesoris(invAks);
         });
-      } else if (updatedTx.category !== 'Earmould' && !(updatedTx.category === 'Spare Part dan Service' && updatedTx.subtype.toLowerCase().includes('jasa'))) {
+      } else if (!isNonStockItem(updatedTx.subtype, updatedTx.category)) {
         if (updatedTx.category === 'Spare Part dan Service' && isSonicAmplifierSubtype(updatedTx.subtype)) {
           const targetSkus = getSonicAmplifierTargetSkus(updatedTx.subtype);
           let resolvedSku = targetSkus[0] || 'E2OBD';
