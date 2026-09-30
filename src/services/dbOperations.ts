@@ -106,20 +106,8 @@ export const inventoryDbOps = {
   deleteInventoryAksesoris: (id: string) => withAlert(deleteDoc(doc(db, 'inventoryAksesoris', id))),
 };
 
-// Automatic one-time background backfill for any legacy Jasa Periksa records with Rp 0
+// Automatic backfill is disabled to ensure 100% discounted (Rp 0) transactions are strictly preserved
 export const backfillZeroJasaPeriksaInFirestore = async () => {
-  try {
-    const snap = await getDocs(collection(db, 'jasa_periksa'));
-    for (const d of snap.docs) {
-      const data = d.data() as JasaPeriksaTransaction;
-      if (!data.biayaJasaPeriksa || data.biayaJasaPeriksa <= 0) {
-        const sanitized = sanitizeJasaPeriksaRecord(data);
-        if (sanitized.biayaJasaPeriksa > 0) {
-          await setDoc(doc(db, 'jasa_periksa', d.id), sanitize(sanitized), { merge: true });
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Backfill jasa_periksa note:", err);
-  }
+  // No-op: Preserve all zero or discounted transactions exactly as recorded
+  return;
 };

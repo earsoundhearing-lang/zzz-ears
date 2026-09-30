@@ -168,7 +168,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   const totalBayar = isAksesoris
     ? aks?.jumlah || 0
     : isJasa
-    ? jsa?.biayaJasaPeriksa || 0
+    ? (jsa?.diskon ? Math.max(0, (jsa.subtotalBiaya || (jsa.biayaJasaPeriksa + jsa.diskon)) - jsa.diskon) : (jsa?.biayaJasaPeriksa || 0))
     : isAbdDP
     ? abd?.uangMuka || 0
     : abd?.jumlah || 0;
@@ -720,7 +720,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   ) : null}
                   <div className="flex justify-between text-xs sm:text-sm font-bold text-[#23277A] pt-1.5 border-t-2 border-[#23277A]">
                     <span>TOTAL PEMBAYARAN:</span>
-                    <span className="text-[#23277A] font-mono font-bold">{formatRupiah(jsa.biayaJasaPeriksa)}</span>
+                    <span className="text-[#23277A] font-mono font-bold">{formatRupiah(totalBayar)}</span>
                   </div>
                 </>
               )}

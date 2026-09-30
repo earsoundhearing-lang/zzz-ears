@@ -17,6 +17,7 @@ interface ReparasiReportProps {
 }
 
 const REPARASI_STATUS_OPTIONS: ReparasiStatus[] = [
+  'Clean Alat',
   'Receiver',
   'Amplifier',
   'Microphone',

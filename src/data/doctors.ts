@@ -47,6 +47,7 @@ export const DOCTOR_REFERRAL_LIST: string[] = [
   'dr. Deddy Eko Susilo, Sp.THT (SU)',
   'dr. Dewi Indriani, Sp.THT (SU)',
   'dr. Dewi Puspetasari, Sp.THT (SU)',
+  'dr. Dina Maulida Lubis Sp.THT',
   'dr. Eddy Mahidin, Sp.THT (SU)',
   'dr. Edward S Sembiring, Sp.THT (SU)',
   'dr. Emilda Dewi, Sp.THT (SU)',
@@ -265,6 +266,9 @@ export const matchOfficialDoctorName = (raw: string | undefined | null): string 
   // Direct keyword mappings for common shorthand names
   if (lower.includes('marojahan') || lower.includes('pandiangan')) {
     return 'dr. Marojahan Pandiangan Sp.THT-KL (SU)';
+  }
+  if (lower.includes('dina') || (lower.includes('maulida') && lower.includes('lubis'))) {
+    return 'dr. Dina Maulida Lubis Sp.THT';
   }
   if (lower.includes('afrizal')) {
     return 'dr. Afrizal Sp.THT (AC)';

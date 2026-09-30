@@ -412,6 +412,7 @@ export type ReparasiStatus =
   | 'Amplifier'
   | 'Microphone'
   | 'Korosi'
+  | 'Clean Alat'
   | 'Sedang Diperiksa'
   | 'Selesai Perbaikan';
 

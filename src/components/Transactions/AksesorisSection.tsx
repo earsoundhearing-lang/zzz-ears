@@ -50,6 +50,7 @@ const CATEGORIES: AksesorisTypeCategory[] = [
   'Selang Soft',
   'Drying Jar',
   'Charger ABD',
+  'Service Alat Bantu Dengar',
   'Spare Part dan Service',
   'HA Retainer (Gantungan Alat Bantu Dengar)',
   'Wax Guard',
@@ -339,10 +340,10 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
       const defaultItem = CHARGER_SUBTYPES[0];
       setSubtype(defaultItem ? defaultItem.nama : 'Charger A1 Travel');
       setHargaJual(defaultItem ? defaultItem.harga : 4500000);
-    } else if (newCat === 'Spare Part dan Service') {
-      const defaultItem = SPAREPART_SERVICE_SUBTYPES[0];
-      setSubtype(defaultItem ? defaultItem.nama : 'Jasa Service Biasa');
-      setHargaJual(defaultItem ? defaultItem.harga : 100000);
+    } else if (newCat === 'Service Alat Bantu Dengar' || newCat === 'Spare Part dan Service') {
+      const cleanItem = SPAREPART_SERVICE_SUBTYPES.find(i => i.nama.toLowerCase().includes('clean')) || SPAREPART_SERVICE_SUBTYPES[0];
+      setSubtype(cleanItem ? cleanItem.nama : 'Clean Alat');
+      setHargaJual(cleanItem ? cleanItem.harga : 50000);
     } else if (newCat === 'Selang Soft') {
       setSubtype('Selang Soft');
       setHargaJual(15000);
@@ -857,7 +858,7 @@ export const AksesorisSection: React.FC<AksesorisSectionProps> = ({
                       </option>
                     ))}
                   </select>
-                ) : category === 'Spare Part dan Service' ? (
+                ) : (category === 'Spare Part dan Service' || category === 'Service Alat Bantu Dengar') ? (
                   <div className="space-y-2">
                     <select
                       value={subtype}

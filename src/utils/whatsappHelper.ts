@@ -136,11 +136,13 @@ export function generateWhatsAppReceiptMessage({
     }
 
     lines.push(``);
-    if ((jsa.subtotalBiaya || 0) > 0 && (jsa.diskon || 0) > 0) {
-      lines.push(`Subtotal: ${formatRupiah(jsa.subtotalBiaya || 0)}`);
+    const jsaNet = jsa.diskon ? Math.max(0, (jsa.subtotalBiaya || (jsa.biayaJasaPeriksa + jsa.diskon)) - jsa.diskon) : (jsa.biayaJasaPeriksa || 0);
+    const jsaSub = jsa.subtotalBiaya || (jsa.diskon ? jsaNet + jsa.diskon : jsaNet);
+    if ((jsa.diskon || 0) > 0) {
+      lines.push(`Subtotal: ${formatRupiah(jsaSub)}`);
       lines.push(`Diskon/Potongan: -${formatRupiah(jsa.diskon || 0)}`);
     }
-    lines.push(`*Total Pembayaran: ${formatRupiah(jsa.biayaJasaPeriksa)}*`);
+    lines.push(`*Total Pembayaran: ${formatRupiah(jsaNet)}*`);
   } else if (isABD && abd) {
     lines.push(`*Rincian Alat Bantu Dengar:*`);
     lines.push(`• Tipe Unit 1: ${abd.tipeABD || '-'} ${abd.modelABD ? `(${abd.modelABD})` : ''}`);

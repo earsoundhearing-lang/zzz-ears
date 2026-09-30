@@ -1064,7 +1064,7 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
                 <div className="flex justify-between pt-1 border-t border-slate-200 font-bold text-[#23277A]">
                   <span>Total Bayar:</span>
                   <span className="text-sm font-black">
-                    {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || t.biayaJasaPeriksa) - t.diskon) : t.biayaJasaPeriksa)}
+                    {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || (t.biayaJasaPeriksa + t.diskon)) - t.diskon) : (t.biayaJasaPeriksa || 0))}
                   </span>
                 </div>
               </div>
@@ -1224,7 +1224,7 @@ export const JasaPeriksaSection: React.FC<JasaPeriksaSectionProps> = ({
                       {t.diskon ? <div className="text-[10px] text-rose-600 font-bold">Disc: -{formatRupiah(t.diskon)}</div> : null}
                     </td>
                     <td className="p-3.5 text-right font-black text-[#23277A] whitespace-nowrap">
-                      {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || t.biayaJasaPeriksa) - t.diskon) : t.biayaJasaPeriksa)}
+                      {formatRupiah(t.diskon ? Math.max(0, (t.subtotalBiaya || (t.biayaJasaPeriksa + t.diskon)) - t.diskon) : (t.biayaJasaPeriksa || 0))}
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       <span

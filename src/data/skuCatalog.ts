@@ -127,6 +127,7 @@ export const MASTER_AKSESORIS_SKU_LIST: AksesorisSkuItem[] = [
   { sku: 'RDDSK', nama: 'Charger RADIANT Desk', kategori: 'Charger ABD', aliases: ['Charger, RADIANT Desk', 'Radiant Desk Charger'], harga: 2100000 },
   
   // Spare Part dan Service
+  { sku: 'CLN01', nama: 'Clean Alat', kategori: 'Spare Part dan Service', aliases: ['Clean Alat', 'Clean Alat Bantu Dengar', 'Pembersihan Alat', 'Cleaning Alat', 'Service Clean Alat'], harga: 50000 },
   { sku: 'MIC01', nama: 'Mic Signia / AS / Rexton', kategori: 'Spare Part dan Service', aliases: ['Mic Signia, AS, Rexton', 'Mic Signia', 'Mic AS', 'Mic Rexton'], harga: 800000 },
   { sku: 'RCV01', nama: 'Receiver Signia / AS / Rexton', kategori: 'Spare Part dan Service', aliases: ['Receiver Signia, AS, Rexton', 'Receiver Signia', 'Receiver AS', 'Receiver Rexton'], harga: 1000000 },
   { sku: 'SPKMF', nama: 'miniFit Speaker', kategori: 'Spare Part dan Service', aliases: ['miniFit Speaker', 'Speaker miniFit'], harga: 750000 },

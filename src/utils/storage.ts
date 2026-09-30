@@ -418,32 +418,18 @@ export const sanitizePatientRecord = (rawP: Patient): Patient => {
   return p;
 };
 
-// Single-item Jasa Periksa sanitizer ensuring nominal / biayaJasaPeriksa is always accurately populated
+// Single-item Jasa Periksa sanitizer ensuring nominal / biayaJasaPeriksa is always accurately populated after discount
 export const sanitizeJasaPeriksaRecord = (rawJ: JasaPeriksaTransaction): JasaPeriksaTransaction => {
   if (!rawJ) return rawJ;
   const j = { ...rawJ };
 
-  // Calculate or fix missing/zero biayaJasaPeriksa
-  let nominal = Number(j.biayaJasaPeriksa || 0);
-  if (nominal <= 0 && typeof (j as any).jumlah === 'number' && (j as any).jumlah > 0) {
-    nominal = (j as any).jumlah;
-  }
-  if (nominal <= 0 && typeof j.subtotalBiaya === 'number' && j.subtotalBiaya > 0) {
-    nominal = j.subtotalBiaya;
-  }
-  if (nominal <= 0 && typeof j.payment?.nominalTotal === 'number' && j.payment.nominalTotal > 0) {
-    nominal = j.payment.nominalTotal;
-  }
-  if (nominal <= 0) {
-    const cash = Number(j.payment?.cashAmount || 0);
-    const trf = Number(j.payment?.transferAmount || 0);
-    if (cash + trf > 0) {
-      nominal = cash + trf;
-    }
-  }
+  const diskon = Number(j.diskon || 0);
 
-  // If still 0 or empty, derive from standard examination tariffs
-  if (nominal <= 0) {
+  // 1. Determine gross subtotal (subtotalBiaya) before discount
+  let subtotal = Number(j.subtotalBiaya || 0);
+
+  if (subtotal <= 0) {
+    // If examination types are available, calculate exact standard tariff
     const exams = Array.isArray(j.jenisPemeriksaan) 
       ? j.jenisPemeriksaan 
       : (j.jenisPemeriksaan ? [j.jenisPemeriksaan] : []);
@@ -461,16 +447,29 @@ export const sanitizeJasaPeriksaRecord = (rawJ: JasaPeriksaTransaction): JasaPer
       else if (str.includes('audiometri')) calculated += 50000;
       else calculated += 50000;
     });
-    nominal = calculated > 0 ? calculated : 50000;
+
+    if (calculated > 0) {
+      subtotal = calculated;
+    } else if (typeof (j as any).jumlah === 'number' && (j as any).jumlah > 0) {
+      subtotal = (j as any).jumlah + diskon;
+    } else if (typeof j.biayaJasaPeriksa === 'number' && j.biayaJasaPeriksa > 0) {
+      subtotal = j.biayaJasaPeriksa + diskon;
+    } else {
+      subtotal = 50000;
+    }
   }
 
-  j.biayaJasaPeriksa = nominal;
-  j.subtotalBiaya = j.subtotalBiaya || nominal;
-  (j as any).jumlah = nominal;
+  // 2. Final Net Pay is strictly subtotal - diskon (minimum 0)
+  const netBayar = Math.max(0, subtotal - diskon);
+
+  j.subtotalBiaya = subtotal;
+  j.diskon = diskon;
+  j.biayaJasaPeriksa = netBayar;
+  (j as any).jumlah = netBayar;
 
   if (j.payment) {
-    if (!j.payment.nominalTotal || j.payment.nominalTotal <= 0) {
-      j.payment.nominalTotal = nominal;
+    if (j.payment.nominalTotal === undefined || j.payment.nominalTotal === null || j.payment.nominalTotal !== netBayar) {
+      j.payment.nominalTotal = netBayar;
     }
   }
 
